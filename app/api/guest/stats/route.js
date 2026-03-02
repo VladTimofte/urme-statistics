@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
 import { getAllOrdersForProduct } from "../../../../lib/woo";
+import { cookies } from "next/headers";
+import {
+  verifySessionToken,
+  SESSION_COOKIE_NAME,
+} from "../../../../lib/session.js";
 
 function isPaidStatus(status) {
   return status === "processing" || status === "completed";
 }
 
 export async function GET() {
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE_NAME)?.value || null;
+  const session = verifySessionToken(token, {
+    secret: process.env.AUTH_SECRET,
+  });
+
+  if (!session || (session.role !== "admin" && session.role !== "guest")) {
+    return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
   const productId = Number(process.env.WOO_PRODUCT_ID || 4350);
   const totalStock = Number(process.env.WOO_TOTAL_STOCK || 150);
 

@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAllOrdersForProduct } from "../../../../lib/woo";
 
+import { cookies } from "next/headers";
+import {
+  verifySessionToken,
+  SESSION_COOKIE_NAME,
+} from "../../../../lib/session.js";
+
 const PRODUCT_ID = Number(process.env.WOO_PRODUCT_ID || 4350);
 
 function statusLabel(status) {
@@ -108,6 +114,16 @@ function buildTicketsFromOrder(order) {
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const q = normalizeStr(searchParams.get("q")).toLowerCase();
+
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE_NAME)?.value || null;
+  const session = verifySessionToken(token, {
+    secret: process.env.AUTH_SECRET,
+  });
+
+  if (!session || session.role !== "admin") {
+    return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
 
   const orders = await getAllOrdersForProduct({ productId: PRODUCT_ID });
 
