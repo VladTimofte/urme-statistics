@@ -112,9 +112,6 @@ function buildTicketsFromOrder(order) {
 }
 
 export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const q = normalizeStr(searchParams.get("q")).toLowerCase();
-
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE_NAME)?.value || null;
   const session = verifySessionToken(token, {
@@ -124,6 +121,9 @@ export async function GET(req) {
   if (!session || session.role !== "admin") {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
+
+  const { searchParams } = new URL(req.url);
+  const q = normalizeStr(searchParams.get("q")).toLowerCase();
 
   const orders = await getAllOrdersForProduct({ productId: PRODUCT_ID });
 

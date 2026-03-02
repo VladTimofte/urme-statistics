@@ -10,12 +10,12 @@ export default async function AdminLayout({ children }) {
     secret: process.env.AUTH_SECRET,
   });
 
-  // Nu e logat
+  // not logged in
   if (!session) {
     redirect("/login?next=/admin");
   }
 
-  // Nu e admin
+  // guest trying to access admin
   if (session.role !== "admin") {
     redirect("/guest");
   }
