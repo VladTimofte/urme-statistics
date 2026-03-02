@@ -42,8 +42,7 @@ export default function LoginClient() {
   return (
     <div style={styles.wrap}>
       <div style={styles.card}>
-        <h1 style={styles.h1}>URME Admin</h1>
-        <p style={styles.p}>Login</p>
+        <h1 style={styles.h1}>URME</h1>
 
         <form onSubmit={onSubmit} style={styles.form}>
           <label style={styles.label}>
