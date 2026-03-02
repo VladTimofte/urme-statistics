@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import {
   verifySessionToken,
   SESSION_COOKIE_NAME,
-} from "../../../../../lib/session.js";
+} from "../../../../lib/session.js";
 
 const PRODUCT_ID = Number(process.env.WOO_PRODUCT_ID || 4350);
 
