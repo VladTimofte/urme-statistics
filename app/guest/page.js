@@ -42,7 +42,7 @@ export default function GuestPage() {
       {data ? (
         <div style={styles.grid}>
           <div style={styles.card}>
-            <div style={styles.label}>Bilete vandute (PAID)</div>
+            <div style={styles.label}>Bilete vandute</div>
             <div style={styles.value}>{data.paidTickets}</div>
           </div>
           <div style={styles.card}>
@@ -54,7 +54,7 @@ export default function GuestPage() {
             <div style={styles.value}>{data.remaining}</div>
           </div>
           <div style={styles.card}>
-            <div style={styles.label}>Comenzi PAID</div>
+            <div style={styles.label}>Comenzi platite</div>
             <div style={styles.value}>{data.paidOrders}</div>
           </div>
         </div>
