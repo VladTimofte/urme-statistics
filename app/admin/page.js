@@ -53,6 +53,7 @@ export default function AdminPage() {
   const [isMobile, setIsMobile] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [isWorkShopOpen, setIsWorkShopOpen] = useState(false);
   const [editState, setEditState] = useState({
     open: false,
     loading: false,
@@ -371,15 +372,23 @@ export default function AdminPage() {
       {err ? <div style={styles.err}>{err}</div> : null}
 
       <div style={styles.workshopSummaryWrap}>
-        <div style={styles.workshopSummaryTitle}>Workshop-uri</div>
-        <div style={styles.workshopSummaryGrid}>
-          {workshopSummary.map((item) => (
-            <div key={item.key} style={styles.workshopSummaryCard}>
-              <div style={styles.workshopSummaryLabel}>{item.label}</div>
-              <div style={styles.workshopSummaryCount}>{item.count}</div>
-            </div>
-          ))}
+        <div
+          style={styles.workshopSummaryTitleWrapper}
+          onClick={() => setIsWorkShopOpen(!isWorkShopOpen)}
+        >
+          <div style={styles.workshopSummaryTitle}>Workshop-uri</div>
+          <span>{isWorkShopOpen ? "▲" : "▼"}</span>
         </div>
+        {isWorkShopOpen && (
+          <div style={styles.workshopSummaryGrid}>
+            {workshopSummary.map((item) => (
+              <div key={item.key} style={styles.workshopSummaryCard}>
+                <div style={styles.workshopSummaryLabel}>{item.label}</div>
+                <div style={styles.workshopSummaryCount}>{item.count}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {isMobile ? (
@@ -1401,6 +1410,12 @@ const styles = {
     border: "1px solid rgba(0,0,0,.08)",
     borderRadius: 16,
     padding: 14,
+  },
+  workshopSummaryTitleWrapper: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 6,
   },
   workshopSummaryTitle: {
     fontWeight: 900,
