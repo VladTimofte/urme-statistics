@@ -41,7 +41,7 @@ export default function GuestPage() {
   return (
     <div style={styles.wrap(isMobile)}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle(isMobile)}>Guest</h1>
+        <h1 style={styles.pageTitle(isMobile)}>URME</h1>
         <button onClick={logout} style={styles.outBtn}>
           Logout
         </button>

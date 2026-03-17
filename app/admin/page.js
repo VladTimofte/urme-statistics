@@ -304,7 +304,7 @@ export default function AdminPage() {
     <div style={styles.wrap}>
       <div style={styles.header}>
         <div>
-          <h1 style={{ margin: 0 }}>Admin</h1>
+          <h1 style={{ margin: 0 }}>URME</h1>
           <div style={{ color: "rgba(0,0,0,.65)", marginTop: 4 }}>
             Bilete Cumparate: <b>{counts?.PAID} / 150</b>
             {!!counts?.PENDING && (
