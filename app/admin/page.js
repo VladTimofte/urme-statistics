@@ -1,6 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  WORKSHOP_MAP,
+  displayWorkshop,
+  displaySource,
+} from "../helpers/strings";
+
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 export default function AdminPage() {
   const [q, setQ] = useState("");
@@ -8,15 +21,17 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  const [selected, setSelected] = useState(null); // ticket selectat (pentru modal)
+  const [selectedWorkshop, setSelectedWorkshop] = useState("");
+  const [selected, setSelected] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const isModalOpen = !!selected;
 
   async function load() {
     setLoading(true);
     setErr("");
+
     try {
-      const res = await fetch(`/api/admin/tickets?q=${encodeURIComponent(q)}`, {
+      const res = await fetch("/api/admin/tickets", {
         cache: "no-store",
       });
       const d = await res.json();
@@ -29,10 +44,21 @@ export default function AdminPage() {
     }
   }
 
+  async function refreshTickets() {
+    setQ("");
+    setSelectedWorkshop("");
+    setSelected(null);
+    await load();
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
   }
+
+  useEffect(() => {
+    console.log("selected", selected);
+  }, [selected]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 860px)");
@@ -44,14 +70,49 @@ export default function AdminPage() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const counts = useMemo(() => {
     const c = { PAID: 0, PENDING: 0, FAILED: 0 };
-    for (const t of tickets) c[t.paymentState] = (c[t.paymentState] || 0) + 1;
+    for (const t of tickets) {
+      c[t.paymentState] = (c[t.paymentState] || 0) + 1;
+    }
     return c;
   }, [tickets]);
+
+  const workshopSummary = useMemo(() => {
+    const summary = Object.keys(WORKSHOP_MAP).map((key) => ({
+      key,
+      label: WORKSHOP_MAP[key],
+      count: tickets.filter(
+        (t) => t.attendeeWorkshop === key && t.paymentState === "PAID",
+      ).length,
+    }));
+    console.log("summary", summary);
+    console.log("tickets", tickets);
+
+    return summary;
+  }, [tickets]);
+
+  const filteredTickets = useMemo(() => {
+    const normalizedQ = normalizeText(q);
+
+    return tickets.filter((t) => {
+      const matchesWorkshop = selectedWorkshop
+        ? t.attendeeWorkshop === selectedWorkshop
+        : true;
+
+      if (!matchesWorkshop) return false;
+
+      if (!normalizedQ) return true;
+
+      const haystack = [t.attendeeFirstName, t.attendeeLastName, t.purchasedBy]
+        .map(normalizeText)
+        .join(" ");
+
+      return haystack.includes(normalizedQ);
+    });
+  }, [tickets, q, selectedWorkshop]);
 
   return (
     <div style={styles.wrap}>
@@ -59,8 +120,19 @@ export default function AdminPage() {
         <div>
           <h1 style={{ margin: 0 }}>Admin</h1>
           <div style={{ color: "rgba(0,0,0,.65)", marginTop: 4 }}>
-            Tickets: <b>{tickets.length}</b> | Paid: <b>{counts.PAID}</b> |
-            Pending: <b>{counts.PENDING}</b> | Failed: <b>{counts.FAILED}</b>
+            Bilete Cumparate: <b>{counts?.PAID} / 150</b>
+            {!!counts?.PENDING && (
+              <>
+                {" "}
+                | Se asteapta plata: <b>{counts.PENDING}</b>
+              </>
+            )}
+            {!!counts?.FAILED && (
+              <>
+                {" "}
+                | Bilete eroare: <b>{counts.FAILED}</b>
+              </>
+            )}
           </div>
         </div>
 
@@ -68,6 +140,17 @@ export default function AdminPage() {
           <a href="/api/admin/tickets.csv" style={styles.csvBtn}>
             Download CSV
           </a>
+
+          <button
+            onClick={refreshTickets}
+            style={styles.refreshBtn}
+            disabled={loading}
+            title="Refresh date"
+            aria-label="Refresh date"
+          >
+            {loading ? "..." : "↻"}
+          </button>
+
           <button onClick={logout} style={styles.outBtn}>
             Logout
           </button>
@@ -77,21 +160,44 @@ export default function AdminPage() {
       <div style={styles.controls}>
         <input
           style={styles.input}
-          placeholder="Search dupa nume/prenume participant..."
+          placeholder="Cautare dupa nume/prenume participant sau cumparat de..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <button onClick={load} style={styles.btn} disabled={loading}>
-          {loading ? "Loading..." : "Search"}
-        </button>
+
+        <select
+          style={styles.select}
+          value={selectedWorkshop}
+          onChange={(e) => setSelectedWorkshop(e.target.value)}
+        >
+          <option value="">Toate workshop-urile</option>
+          {Object.entries(WORKSHOP_MAP).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {err ? <div style={styles.err}>{err}</div> : null}
 
-      {/* ✅ Responsive: randam doar UNA */}
+      <div style={styles.workshopSummaryWrap}>
+        <div style={styles.workshopSummaryTitle}>
+          Workshop-uri (Doar bilete platite)
+        </div>
+        <div style={styles.workshopSummaryGrid}>
+          {workshopSummary.map((item) => (
+            <div key={item.key} style={styles.workshopSummaryCard}>
+              <div style={styles.workshopSummaryLabel}>{item.label}</div>
+              <div style={styles.workshopSummaryCount}>{item.count}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {isMobile ? (
         <div style={{ display: "grid", gap: 10 }}>
-          {tickets.map((t) => (
+          {filteredTickets.map((t) => (
             <button
               key={`${t.orderId}-${t.ticketIndex}`}
               onClick={() => setSelected(t)}
@@ -108,15 +214,14 @@ export default function AdminPage() {
 
               <div style={styles.mobileMeta}>
                 <div>
-                  <b>Workshop:</b> {t.attendeeWorkshop || "-"}
+                  <b>Workshop:</b> {displayWorkshop(t.attendeeWorkshop) || "-"}
                 </div>
-                <div>
-                  <b>Ticket:</b> #{t.ticketIndex} • <b>Order:</b> #
-                  {t.orderNumber}
-                </div>
-                <div>
-                  <b>Cumparat de:</b> {t.purchasedBy || "-"}
-                </div>
+                {`${t.attendeeFirstName + " " + t.attendeeLastName}` !==
+                  t?.purchasedBy && (
+                  <div>
+                    <b>Cumparat de:</b> {t.purchasedBy || "-"}
+                  </div>
+                )}
               </div>
 
               <div
@@ -127,9 +232,10 @@ export default function AdminPage() {
             </button>
           ))}
 
-          {!loading && tickets.length === 0 ? (
+          {!loading && filteredTickets.length === 0 ? (
             <div style={styles.card}>No results</div>
           ) : null}
+
           {loading ? <div style={styles.card}>Loading...</div> : null}
         </div>
       ) : (
@@ -140,13 +246,12 @@ export default function AdminPage() {
                 <th style={styles.th}>Status</th>
                 <th style={styles.th}>Participant</th>
                 <th style={styles.th}>Workshop</th>
-                <th style={styles.th}>Cumparat de</th>
-                <th style={styles.th}>Order</th>
+                <th style={styles.th}>Bilet Cumparat de</th>
                 <th style={styles.th}>Detalii</th>
               </tr>
             </thead>
             <tbody>
-              {tickets.map((t) => (
+              {filteredTickets.map((t) => (
                 <tr
                   key={`${t.orderId}-${t.ticketIndex}`}
                   style={{ cursor: "pointer" }}
@@ -164,18 +269,11 @@ export default function AdminPage() {
                         " " +
                         (t.attendeeLastName || "")}
                     </b>
-                    <div style={{ color: "rgba(0,0,0,.55)", fontSize: 12 }}>
-                      Ticket #{t.ticketIndex}
-                    </div>
                   </td>
-                  <td style={styles.td}>{t.attendeeWorkshop || "-"}</td>
-                  <td style={styles.td}>{t.purchasedBy || "-"}</td>
                   <td style={styles.td}>
-                    #{t.orderNumber}{" "}
-                    <div style={{ color: "rgba(0,0,0,.55)", fontSize: 12 }}>
-                      {t.orderStatus}
-                    </div>
+                    {displayWorkshop(t.attendeeWorkshop) || "-"}
                   </td>
+                  <td style={styles.td}>{t.purchasedBy || "-"}</td>
                   <td style={styles.td}>
                     {t.attendeeHasFullDetails ? (
                       <div style={{ fontSize: 12, lineHeight: 1.35 }}>
@@ -186,14 +284,7 @@ export default function AdminPage() {
                           <b>Biserica:</b> {t.attendeeDetails?.church || "-"}
                         </div>
                         <div>
-                          <b>Departament:</b>{" "}
-                          {t.attendeeDetails?.department || "-"}
-                        </div>
-                        <div>
                           <b>Varsta:</b> {t.attendeeDetails?.ageRange || "-"}
-                        </div>
-                        <div>
-                          <b>Sursa:</b> {t.attendeeDetails?.heardFrom || "-"}
                         </div>
                       </div>
                     ) : (
@@ -205,7 +296,8 @@ export default function AdminPage() {
                   </td>
                 </tr>
               ))}
-              {!loading && tickets.length === 0 ? (
+
+              {!loading && filteredTickets.length === 0 ? (
                 <tr>
                   <td style={styles.td} colSpan={6}>
                     No results
@@ -217,7 +309,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ✅ Modal */}
       {isModalOpen ? (
         <TicketModal ticket={selected} onClose={() => setSelected(null)} />
       ) : null}
@@ -226,7 +317,6 @@ export default function AdminPage() {
 }
 
 function TicketModal({ ticket, onClose }) {
-  // close on ESC
   useEffect(() => {
     function onKey(e) {
       if (e.key === "Escape") onClose();
@@ -258,10 +348,6 @@ function TicketModal({ ticket, onClose }) {
                 {attendeeName}
               </div>
             </div>
-            <div style={{ marginTop: 6, color: "rgba(0,0,0,.65)" }}>
-              Ticket #{ticket.ticketIndex} • Order #{ticket.orderNumber} •
-              Status: {ticket.orderStatus}
-            </div>
           </div>
 
           <button
@@ -275,11 +361,29 @@ function TicketModal({ ticket, onClose }) {
 
         <div style={modalStyles.body}>
           <Section title="Participant">
-            <Row label="Workshop" value={ticket.attendeeWorkshop || "-"} />
+            <Row
+              label="Workshop"
+              value={displayWorkshop(ticket.attendeeWorkshop) || "-"}
+            />
             <Row label="Cumparat de" value={ticket.purchasedBy || "-"} />
-            <Row label="Email (order)" value={ticket.email || "-"} />
-            <Row label="Telefon (order)" value={ticket.phone || "-"} />
-            <Row label="Data comanda" value={ticket.dateCreated || "-"} />
+            {ticket.attendeeHasFullDetails && (
+              <>
+                <Row label="Email (order)" value={ticket.email || "-"} />
+                <Row label="Telefon (order)" value={ticket.phone || "-"} />
+              </>
+            )}
+            <Row
+              label="Data comanda"
+              value={
+                new Date(ticket.dateCreated).toLocaleString("ro-RO", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }) || "-"
+              }
+            />
           </Section>
 
           <Section title="Detalii complete (doar pentru cumparator)">
@@ -303,7 +407,9 @@ function TicketModal({ ticket, onClose }) {
                 />
                 <Row
                   label="Sursa"
-                  value={ticket.attendeeDetails?.heardFrom || "-"}
+                  value={
+                    displaySource(ticket.attendeeDetails?.heardFrom) || "-"
+                  }
                 />
               </>
             ) : (
@@ -343,17 +449,42 @@ function Section({ title, children }) {
 }
 
 function Row({ label, value }) {
+  const isSmall =
+    typeof window !== "undefined" ? window.innerWidth < 520 : false;
+
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "160px 1fr",
-        gap: 10,
-        alignItems: "baseline",
+        gridTemplateColumns: isSmall
+          ? "1fr"
+          : "minmax(120px, 160px) minmax(0, 1fr)",
+        gap: 6,
+        alignItems: "start",
       }}
     >
-      <div style={{ color: "rgba(0,0,0,.65)", fontSize: 13 }}>{label}</div>
-      <div style={{ fontWeight: 700 }}>{value}</div>
+      <div
+        style={{
+          color: "rgba(0,0,0,.65)",
+          fontSize: 13,
+          lineHeight: 1.4,
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          fontWeight: 700,
+          lineHeight: 1.45,
+          whiteSpace: "normal",
+          overflowWrap: "anywhere",
+          wordBreak: "break-word",
+          minWidth: 0,
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -384,7 +515,12 @@ const styles = {
     marginBottom: 16,
     flexWrap: "wrap",
   },
-  controls: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" },
+  controls: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 12,
+    flexWrap: "wrap",
+  },
   input: {
     minWidth: 260,
     flex: 1,
@@ -392,6 +528,14 @@ const styles = {
     borderRadius: 12,
     padding: "10px 12px",
     outline: "none",
+  },
+  select: {
+    minWidth: 280,
+    border: "1px solid rgba(0,0,0,.15)",
+    borderRadius: 12,
+    padding: "10px 12px",
+    outline: "none",
+    background: "#fff",
   },
   btn: {
     border: "none",
@@ -401,6 +545,17 @@ const styles = {
     background: "#276678",
     color: "#fff",
     fontWeight: 900,
+  },
+  refreshBtn: {
+    border: "1px solid rgba(0,0,0,.15)",
+    borderRadius: 12,
+    width: 42,
+    height: 42,
+    cursor: "pointer",
+    background: "#fff",
+    fontSize: 20,
+    fontWeight: 900,
+    lineHeight: 1,
   },
   outBtn: {
     border: "1px solid rgba(0,0,0,.15)",
@@ -425,6 +580,50 @@ const styles = {
     borderRadius: 12,
     marginBottom: 12,
   },
+  summaryBar: {
+    display: "flex",
+    gap: 16,
+    flexWrap: "wrap",
+    alignItems: "center",
+    padding: "10px 12px",
+    background: "#fff",
+    border: "1px solid rgba(0,0,0,.08)",
+    borderRadius: 14,
+    marginBottom: 12,
+    color: "rgba(0,0,0,.82)",
+  },
+  workshopSummaryWrap: {
+    marginBottom: 14,
+    background: "#fff",
+    border: "1px solid rgba(0,0,0,.08)",
+    borderRadius: 16,
+    padding: 14,
+  },
+  workshopSummaryTitle: {
+    fontWeight: 900,
+    marginBottom: 12,
+  },
+  workshopSummaryGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 10,
+  },
+  workshopSummaryCard: {
+    border: "1px solid rgba(0,0,0,.08)",
+    borderRadius: 14,
+    padding: 12,
+    background: "#f8f9fb",
+  },
+  workshopSummaryLabel: {
+    fontSize: 13,
+    color: "rgba(0,0,0,.75)",
+    lineHeight: 1.4,
+    marginBottom: 8,
+  },
+  workshopSummaryCount: {
+    fontSize: 22,
+    fontWeight: 900,
+  },
   tableWrap: {
     overflow: "auto",
     border: "1px solid rgba(0,0,0,.08)",
@@ -446,7 +645,6 @@ const styles = {
     borderBottom: "1px solid rgba(0,0,0,.08)",
     verticalAlign: "top",
   },
-
   card: {
     background: "#fff",
     border: "1px solid rgba(0,0,0,.08)",
@@ -454,7 +652,6 @@ const styles = {
     padding: 14,
     boxShadow: "0 10px 30px rgba(0,0,0,.05)",
   },
-
   mobileCardBtn: {
     textAlign: "left",
     background: "#fff",
@@ -516,7 +713,14 @@ const modalStyles = {
     background: "#fff",
     fontWeight: 900,
   },
-  body: { padding: 14, display: "grid", gap: 12 },
+  body: {
+    padding: 14,
+    display: "grid",
+    gap: 12,
+    maxHeight: "70vh",
+    overflowY: "auto",
+    WebkitOverflowScrolling: "touch"
+  },
   footer: {
     padding: 14,
     display: "flex",
