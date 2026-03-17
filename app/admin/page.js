@@ -5,6 +5,10 @@ import {
   WORKSHOP_MAP,
   displayWorkshop,
   displaySource,
+  AGE_OPTIONS,
+  SOURCE_OPTIONS,
+  COUNTY_OPTIONS,
+  STATUS_OPTIONS,
 } from "../helpers/strings";
 
 function normalizeText(value) {
@@ -13,6 +17,29 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function emptyMainParticipant() {
+  return {
+    firstName: "",
+    lastName: "",
+    church: "",
+    county: "",
+    department: "",
+    ageRange: "",
+    heardFrom: "",
+    workshop: "",
+    email: "",
+    phone: "",
+  };
+}
+
+function emptyExtraParticipant() {
+  return {
+    firstName: "",
+    lastName: "",
+    workshop: "",
+  };
 }
 
 export default function AdminPage() {
@@ -24,7 +51,22 @@ export default function AdminPage() {
   const [selectedWorkshop, setSelectedWorkshop] = useState("");
   const [selected, setSelected] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const isModalOpen = !!selected;
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editState, setEditState] = useState({
+    open: false,
+    loading: false,
+    saving: false,
+    error: "",
+    mode: "create",
+    sourceTicket: null,
+    orderId: null,
+    form: null,
+    focusExtraIndex: null,
+  });
+
+  const isReadModalOpen = !!selected && !editState.open;
+  const isEditModalOpen = editState.open;
 
   async function load() {
     setLoading(true);
@@ -48,6 +90,8 @@ export default function AdminPage() {
     setQ("");
     setSelectedWorkshop("");
     setSelected(null);
+    setCreateOpen(false);
+    setEditState((prev) => ({ ...prev, open: false }));
     await load();
   }
 
@@ -55,10 +99,6 @@ export default function AdminPage() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
   }
-
-  useEffect(() => {
-    console.log("selected", selected);
-  }, [selected]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 860px)");
@@ -81,17 +121,15 @@ export default function AdminPage() {
   }, [tickets]);
 
   const workshopSummary = useMemo(() => {
-    const summary = Object.keys(WORKSHOP_MAP).map((key) => ({
+    return Object.keys(WORKSHOP_MAP).map((key) => ({
       key,
       label: WORKSHOP_MAP[key],
       count: tickets.filter(
-        (t) => t.attendeeWorkshop === key && t.paymentState === "PAID",
+        (t) =>
+          t.attendeeWorkshop === key &&
+          (t.orderStatus === "completed" || t.orderStatus === "processing"),
       ).length,
     }));
-    console.log("summary", summary);
-    console.log("tickets", tickets);
-
-    return summary;
   }, [tickets]);
 
   const filteredTickets = useMemo(() => {
@@ -103,7 +141,6 @@ export default function AdminPage() {
         : true;
 
       if (!matchesWorkshop) return false;
-
       if (!normalizedQ) return true;
 
       const haystack = [t.attendeeFirstName, t.attendeeLastName, t.purchasedBy]
@@ -113,6 +150,154 @@ export default function AdminPage() {
       return haystack.includes(normalizedQ);
     });
   }, [tickets, q, selectedWorkshop]);
+
+  function openCreateModal() {
+    setSelected(null);
+    setCreateOpen(true);
+  }
+
+  function closeCreateModal() {
+    setCreateOpen(false);
+  }
+
+  async function openEditModalFromTicket(ticket) {
+    setSelected(null);
+    setEditState({
+      open: true,
+      loading: true,
+      saving: false,
+      error: "",
+      mode: "edit",
+      sourceTicket: ticket,
+      orderId: ticket.orderId,
+      form: null,
+      focusExtraIndex: ticket.attendeeHasFullDetails
+        ? null
+        : ticket.ticketIndex - 2,
+    });
+
+    try {
+      const res = await fetch(`/api/admin/orders/${ticket.orderId}`, {
+        cache: "no-store",
+      });
+      const d = await res.json();
+
+      if (!res.ok || !d.ok) {
+        throw new Error(d?.error || "Nu am putut incarca comanda.");
+      }
+
+      setEditState((prev) => ({
+        ...prev,
+        loading: false,
+        form: {
+          status: d.editable?.status || "pending",
+          mainParticipant: {
+            firstName: d.editable?.mainParticipant?.firstName || "",
+            lastName: d.editable?.mainParticipant?.lastName || "",
+            church: d.editable?.mainParticipant?.church || "",
+            county: d.editable?.mainParticipant?.county || "",
+            department: d.editable?.mainParticipant?.department || "",
+            ageRange: d.editable?.mainParticipant?.ageRange || "",
+            heardFrom: d.editable?.mainParticipant?.heardFrom || "",
+            workshop: d.editable?.mainParticipant?.workshop || "",
+            email: d.editable?.mainParticipant?.email || "",
+            phone: d.editable?.mainParticipant?.phone || "",
+          },
+          extraParticipants: Array.isArray(d.editable?.extraParticipants)
+            ? d.editable.extraParticipants.map((p) => ({
+                firstName: p.firstName || "",
+                lastName: p.lastName || "",
+                workshop: p.workshop || "",
+              }))
+            : [],
+        },
+      }));
+    } catch (e) {
+      setEditState((prev) => ({
+        ...prev,
+        loading: false,
+        error: e?.message || "Nu am putut incarca comanda.",
+      }));
+    }
+  }
+
+  function closeEditModal() {
+    setEditState({
+      open: false,
+      loading: false,
+      saving: false,
+      error: "",
+      mode: "create",
+      sourceTicket: null,
+      orderId: null,
+      form: null,
+      focusExtraIndex: null,
+    });
+  }
+
+  async function handleCreateSubmit(payload) {
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const d = await res.json();
+
+      if (!res.ok || !d.ok) {
+        throw new Error(
+          Array.isArray(d?.details) && d.details.length
+            ? d.details.join(" ")
+            : d?.error || "Nu am putut crea comanda.",
+        );
+      }
+
+      closeCreateModal();
+      await load();
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  async function handleEditSubmit(payload) {
+    try {
+      setEditState((prev) => ({ ...prev, saving: true, error: "" }));
+
+      const res = await fetch(`/api/admin/orders/${editState.orderId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const d = await res.json();
+
+      if (!res.ok || !d.ok) {
+        throw new Error(
+          Array.isArray(d?.details) && d.details.length
+            ? d.details.join(" ")
+            : d?.error || "Nu am putut salva modificarile.",
+        );
+      }
+
+      closeEditModal();
+      await load();
+    } catch (e) {
+      setEditState((prev) => ({
+        ...prev,
+        saving: false,
+        error: e?.message || "Nu am putut salva modificarile.",
+      }));
+    }
+  }
+
+  useEffect(() => {
+    console.log("filteredTickets", filteredTickets);
+  }, [filteredTickets]);
 
   return (
     <div style={styles.wrap}>
@@ -137,6 +322,10 @@ export default function AdminPage() {
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={openCreateModal} style={styles.primaryHeaderBtn}>
+            + Adauga inscriere
+          </button>
+
           <a href="/api/admin/tickets.csv" style={styles.csvBtn}>
             Download CSV
           </a>
@@ -182,9 +371,7 @@ export default function AdminPage() {
       {err ? <div style={styles.err}>{err}</div> : null}
 
       <div style={styles.workshopSummaryWrap}>
-        <div style={styles.workshopSummaryTitle}>
-          Workshop-uri (Doar bilete platite)
-        </div>
+        <div style={styles.workshopSummaryTitle}>Workshop-uri</div>
         <div style={styles.workshopSummaryGrid}>
           {workshopSummary.map((item) => (
             <div key={item.key} style={styles.workshopSummaryCard}>
@@ -200,11 +387,13 @@ export default function AdminPage() {
           {filteredTickets.map((t) => (
             <button
               key={`${t.orderId}-${t.ticketIndex}`}
-              onClick={() => setSelected(t)}
+              onClick={() => openEditModalFromTicket(t)}
               style={styles.mobileCardBtn}
             >
               <div style={styles.mobileRow}>
-                <span style={badgeStyle(t.paymentState)}>{t.paymentState}</span>
+                <span style={badgeStyle(t.orderStatus)}>
+                  {getPaymentLabel(t)}
+                </span>
                 <div style={{ fontWeight: 800 }}>
                   {(t.attendeeFirstName || "-") +
                     " " +
@@ -227,7 +416,7 @@ export default function AdminPage() {
               <div
                 style={{ marginTop: 8, color: "rgba(0,0,0,.6)", fontSize: 12 }}
               >
-                Tap pentru detalii
+                Tap pentru editare
               </div>
             </button>
           ))}
@@ -255,12 +444,12 @@ export default function AdminPage() {
                 <tr
                   key={`${t.orderId}-${t.ticketIndex}`}
                   style={{ cursor: "pointer" }}
-                  onClick={() => setSelected(t)}
-                  title="Click pentru detalii"
+                  onClick={() => openEditModalFromTicket(t)}
+                  title="Click pentru editare"
                 >
                   <td style={styles.td}>
-                    <span style={badgeStyle(t.paymentState)}>
-                      {t.paymentState}
+                    <span style={badgeStyle(t.orderStatus)}>
+                      {getPaymentLabel(t)}
                     </span>
                   </td>
                   <td style={styles.td}>
@@ -309,14 +498,555 @@ export default function AdminPage() {
         </div>
       )}
 
-      {isModalOpen ? (
-        <TicketModal ticket={selected} onClose={() => setSelected(null)} />
+      {isReadModalOpen ? (
+        <TicketModal
+          ticket={selected}
+          onClose={() => setSelected(null)}
+          onEdit={() => openEditModalFromTicket(selected)}
+        />
+      ) : null}
+
+      {createOpen ? (
+        <OrderFormModal
+          mode="create"
+          title="Adauga inscriere"
+          submitLabel="Creeaza comanda"
+          initialData={{
+            status: "processing",
+            mainParticipant: emptyMainParticipant(),
+            extraParticipants: [],
+          }}
+          onClose={closeCreateModal}
+          onSubmit={handleCreateSubmit}
+        />
+      ) : null}
+
+      {isEditModalOpen ? (
+        <EditOrderModal
+          state={editState}
+          onClose={closeEditModal}
+          onSubmit={handleEditSubmit}
+        />
       ) : null}
     </div>
   );
 }
 
-function TicketModal({ ticket, onClose }) {
+function EditOrderModal({ state, onClose, onSubmit }) {
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div style={modalStyles.backdrop} onMouseDown={onClose}>
+      <div
+        style={{ ...modalStyles.modal, maxWidth: 920 }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div style={modalStyles.head}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 900 }}>
+              Editeaza inscriere
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            style={modalStyles.closeBtn}
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={modalStyles.body}>
+          {state.loading ? (
+            <div style={styles.card}>Se incarca comanda...</div>
+          ) : state.error && !state.form ? (
+            <div style={styles.err}>{state.error}</div>
+          ) : state.form ? (
+            <OrderForm
+              mode="edit"
+              initialData={state.form}
+              submitLabel={state.saving ? "Se salveaza..." : "Salveaza"}
+              error={state.error}
+              saving={state.saving}
+              focusExtraIndex={state.focusExtraIndex}
+              onSubmit={onSubmit}
+              onCancel={onClose}
+            />
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderFormModal({
+  mode,
+  title,
+  submitLabel,
+  initialData,
+  onClose,
+  onSubmit,
+}) {
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div style={modalStyles.backdrop} onMouseDown={onClose}>
+      <div
+        style={{ ...modalStyles.modal, maxWidth: 920 }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div style={modalStyles.head}>
+          <div style={{ fontSize: 18, fontWeight: 900 }}>{title}</div>
+
+          <button
+            onClick={onClose}
+            style={modalStyles.closeBtn}
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={modalStyles.body}>
+          <OrderForm
+            mode={mode}
+            initialData={initialData}
+            submitLabel={submitLabel}
+            onSubmit={onSubmit}
+            onCancel={onClose}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderForm({
+  mode,
+  initialData,
+  submitLabel,
+  onSubmit,
+  onCancel,
+  error = "",
+  saving = false,
+  focusExtraIndex = null,
+}) {
+  const [status, setStatus] = useState(initialData?.status || "processing");
+  const [mainParticipant, setMainParticipant] = useState(
+    initialData?.mainParticipant || emptyMainParticipant(),
+  );
+  const [extraParticipants, setExtraParticipants] = useState(
+    Array.isArray(initialData?.extraParticipants)
+      ? initialData.extraParticipants
+      : [],
+  );
+  const [localError, setLocalError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const effectiveSaving = saving || submitting;
+
+  useEffect(() => {
+    setStatus(initialData?.status || "processing");
+    setMainParticipant(initialData?.mainParticipant || emptyMainParticipant());
+    setExtraParticipants(
+      Array.isArray(initialData?.extraParticipants)
+        ? initialData.extraParticipants
+        : [],
+    );
+  }, [initialData]);
+
+  function updateMain(field, value) {
+    setMainParticipant((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
+
+  function updateExtra(index, field, value) {
+    setExtraParticipants((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [field]: value,
+            }
+          : item,
+      ),
+    );
+  }
+
+  function addExtraParticipant() {
+    setExtraParticipants((prev) => [...prev, emptyExtraParticipant()]);
+  }
+
+  function removeExtraParticipant(index) {
+    setExtraParticipants((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function buildPayload() {
+    return {
+      status,
+      mainParticipant: {
+        firstName: mainParticipant.firstName || "",
+        lastName: mainParticipant.lastName || "",
+        church: mainParticipant.church || "",
+        county: mainParticipant.county || "",
+        department: mainParticipant.department || "",
+        ageRange: mainParticipant.ageRange || "",
+        heardFrom: mainParticipant.heardFrom || "",
+        workshop: mainParticipant.workshop || "",
+        email: mainParticipant.email || "",
+        phone: mainParticipant.phone || "",
+      },
+      extraParticipants: extraParticipants.map((p) => ({
+        firstName: p.firstName || "",
+        lastName: p.lastName || "",
+        workshop: p.workshop || "",
+      })),
+    };
+  }
+
+  function validate() {
+    if (!String(mainParticipant.firstName || "").trim()) {
+      return "Numele participantului principal este obligatoriu.";
+    }
+    if (!String(mainParticipant.lastName || "").trim()) {
+      return "Prenumele participantului principal este obligatoriu.";
+    }
+    if (!String(mainParticipant.workshop || "").trim()) {
+      return "Workshop-ul participantului principal este obligatoriu.";
+    }
+
+    for (let i = 0; i < extraParticipants.length; i++) {
+      const p = extraParticipants[i];
+      const nr = i + 1;
+
+      if (!String(p.firstName || "").trim()) {
+        return `Numele pentru participantul extra ${nr} este obligatoriu.`;
+      }
+      if (!String(p.lastName || "").trim()) {
+        return `Prenumele pentru participantul extra ${nr} este obligatoriu.`;
+      }
+      if (!String(p.workshop || "").trim()) {
+        return `Workshop-ul pentru participantul extra ${nr} este obligatoriu.`;
+      }
+    }
+
+    return "";
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLocalError("");
+
+    const validationError = validate();
+    if (validationError) {
+      setLocalError(validationError);
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await onSubmit(buildPayload());
+    } catch (e) {
+      setLocalError(e?.message || "Nu am putut salva.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
+      {error ? <div style={styles.err}>{error}</div> : null}
+      {localError ? <div style={styles.err}>{localError}</div> : null}
+
+      <Section title="Status comanda">
+        <div style={formGridStyles.twoCols}>
+          <Field label="Status">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              style={styles.selectFull}
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </Section>
+
+      <Section title="Participant principal / cumparator bilete">
+        <div style={formGridStyles.twoCols}>
+          <Field label="Nume *">
+            <input
+              value={mainParticipant.firstName}
+              onChange={(e) => updateMain("firstName", e.target.value)}
+              style={styles.inputFull}
+            />
+          </Field>
+
+          <Field label="Prenume *">
+            <input
+              value={mainParticipant.lastName}
+              onChange={(e) => updateMain("lastName", e.target.value)}
+              style={styles.inputFull}
+            />
+          </Field>
+
+          <Field label="Workshop *">
+            <select
+              value={mainParticipant.workshop}
+              onChange={(e) => updateMain("workshop", e.target.value)}
+              style={styles.selectFull}
+            >
+              <option value="">Alege workshop</option>
+              {Object.entries(WORKSHOP_MAP).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Biserica">
+            <input
+              value={mainParticipant.church}
+              onChange={(e) => updateMain("church", e.target.value)}
+              style={styles.inputFull}
+            />
+          </Field>
+
+          <Field label="Judet">
+            <select
+              value={mainParticipant.county}
+              onChange={(e) => updateMain("county", e.target.value)}
+              style={styles.selectFull}
+            >
+              {COUNTY_OPTIONS.map((opt) => (
+                <option key={opt.value || "empty-county"} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Departament">
+            <input
+              value={mainParticipant.department}
+              onChange={(e) => updateMain("department", e.target.value)}
+              style={styles.inputFull}
+              placeholder="Ex: tineret, inchinare, copii, tehnic"
+            />
+          </Field>
+
+          <Field label="Varsta">
+            <select
+              value={mainParticipant.ageRange}
+              onChange={(e) => updateMain("ageRange", e.target.value)}
+              style={styles.selectFull}
+            >
+              {AGE_OPTIONS.map((opt) => (
+                <option key={opt.value || "empty-age"} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Sursa">
+            <select
+              value={mainParticipant.heardFrom}
+              onChange={(e) => updateMain("heardFrom", e.target.value)}
+              style={styles.selectFull}
+            >
+              {SOURCE_OPTIONS.map((opt) => (
+                <option key={opt.value || "empty-source"} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Email">
+            <input
+              type="email"
+              value={mainParticipant.email}
+              onChange={(e) => updateMain("email", e.target.value)}
+              style={styles.inputFull}
+              placeholder="Gol = empty@empty.na"
+            />
+          </Field>
+
+          <Field label="Telefon">
+            <input
+              type="tel"
+              value={mainParticipant.phone}
+              onChange={(e) => updateMain("phone", e.target.value)}
+              style={styles.inputFull}
+              placeholder='Gol = "-"'
+            />
+          </Field>
+        </div>
+      </Section>
+
+      <Section
+        title={`Participanti extra (${extraParticipants.length}) • Total bilete in comanda: ${
+          1 + extraParticipants.length
+        }`}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          {extraParticipants.length === 0 ? (
+            <div style={{ color: "rgba(0,0,0,.65)" }}>
+              Nu exista participanti extra.
+            </div>
+          ) : null}
+
+          {extraParticipants.map((p, index) => {
+            const isFocused = focusExtraIndex === index;
+
+            return (
+              <div
+                key={index}
+                style={{
+                  border: isFocused
+                    ? "2px solid #276678"
+                    : "1px solid rgba(0,0,0,.08)",
+                  borderRadius: 14,
+                  padding: 12,
+                  background: isFocused ? "rgba(39,102,120,.08)" : "#fff",
+                  boxShadow: isFocused
+                    ? "0 0 0 4px rgba(39,102,120,.10)"
+                    : "none",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    marginBottom: 10,
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ fontWeight: 900 }}>
+                    Participant extra #{index + 1}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeExtraParticipant(index)}
+                    style={styles.deleteBtn}
+                  >
+                    Sterge
+                  </button>
+                </div>
+
+                <div style={formGridStyles.threeCols}>
+                  <Field label="Nume *">
+                    <input
+                      value={p.firstName}
+                      onChange={(e) =>
+                        updateExtra(index, "firstName", e.target.value)
+                      }
+                      style={styles.inputFull}
+                    />
+                  </Field>
+
+                  <Field label="Prenume *">
+                    <input
+                      value={p.lastName}
+                      onChange={(e) =>
+                        updateExtra(index, "lastName", e.target.value)
+                      }
+                      style={styles.inputFull}
+                    />
+                  </Field>
+
+                  <Field label="Workshop *">
+                    <select
+                      value={p.workshop}
+                      onChange={(e) =>
+                        updateExtra(index, "workshop", e.target.value)
+                      }
+                      style={styles.selectFull}
+                    >
+                      <option value="">Alege workshop</option>
+                      {Object.entries(WORKSHOP_MAP).map(([key, label]) => (
+                        <option key={key} value={key}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              </div>
+            );
+          })}
+
+          <div>
+            <button
+              type="button"
+              onClick={addExtraParticipant}
+              style={styles.secondaryBtn}
+            >
+              + Adauga participant extra
+            </button>
+          </div>
+        </div>
+      </Section>
+
+      <div style={modalStyles.footerInline}>
+        <button type="button" onClick={onCancel} style={styles.outBtn}>
+          Anuleaza
+        </button>
+
+        <button
+          type="submit"
+          style={modalStyles.primaryBtn}
+          disabled={effectiveSaving}
+        >
+          {effectiveSaving ? "Se proceseaza..." : submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label style={{ display: "grid", gap: 6 }}>
+      <div
+        style={{
+          color: "rgba(0,0,0,.72)",
+          fontSize: 13,
+          fontWeight: 700,
+        }}
+      >
+        {label}
+      </div>
+      {children}
+    </label>
+  );
+}
+
+function TicketModal({ ticket, onClose, onEdit }) {
   useEffect(() => {
     function onKey(e) {
       if (e.key === "Escape") onClose();
@@ -341,8 +1071,8 @@ function TicketModal({ ticket, onClose }) {
                 flexWrap: "wrap",
               }}
             >
-              <span style={badgeStyle(ticket.paymentState)}>
-                {ticket.paymentState}
+              <span style={badgeStyle(ticket.orderStatus)}>
+                {getPaymentLabel(ticket)}
               </span>
               <div style={{ fontSize: 18, fontWeight: 900 }}>
                 {attendeeName}
@@ -423,8 +1153,11 @@ function TicketModal({ ticket, onClose }) {
         </div>
 
         <div style={modalStyles.footer}>
-          <button onClick={onClose} style={modalStyles.primaryBtn}>
+          <button onClick={onClose} style={styles.outBtn}>
             Inchide
+          </button>
+          <button onClick={onEdit} style={modalStyles.primaryBtn}>
+            Editeaza
           </button>
         </div>
       </div>
@@ -489,7 +1222,13 @@ function Row({ label, value }) {
   );
 }
 
-function badgeStyle(state) {
+function getPaymentLabel(t) {
+  if (t?.orderStatus === "completed") return "CASH";
+  if (t?.orderStatus === "cancelled") return "CANCELLED";
+  return t?.paymentState;
+}
+
+function badgeStyle(orderStatus) {
   const base = {
     display: "inline-block",
     padding: "6px 10px",
@@ -499,11 +1238,35 @@ function badgeStyle(state) {
     border: "1px solid rgba(0,0,0,.10)",
     whiteSpace: "nowrap",
   };
-  if (state === "PAID") return { ...base, background: "rgba(34,197,94,.12)" };
-  if (state === "PENDING")
-    return { ...base, background: "rgba(234,179,8,.14)" };
-  return { ...base, background: "rgba(239,68,68,.12)" };
+
+  if (orderStatus === "processing") {
+    return { ...base, background: "rgba(34,197,94,.12)" }; // verde
+  }
+
+  if (orderStatus === "pending" || orderStatus === "completed") {
+    return { ...base, background: "rgba(234,179,8,.14)" }; // galben
+  }
+
+  if (orderStatus === "failed" || orderStatus === "cancelled") {
+    return { ...base, background: "rgba(239,68,68,.12)" }; // rosu
+  }
+
+  // orice alt status (cancelled, refunded, on-hold etc.)
+  return { ...base, background: "rgba(59,130,246,.12)" }; // albastru
 }
+
+const formGridStyles = {
+  twoCols: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  },
+  threeCols: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  },
+};
 
 const styles = {
   wrap: { padding: 20, maxWidth: 1200, margin: "0 auto" },
@@ -529,6 +1292,14 @@ const styles = {
     padding: "10px 12px",
     outline: "none",
   },
+  inputFull: {
+    width: "85%",
+    border: "1px solid rgba(0,0,0,.15)",
+    borderRadius: 12,
+    padding: "10px 12px",
+    outline: "none",
+    background: "#fff",
+  },
   select: {
     minWidth: 280,
     border: "1px solid rgba(0,0,0,.15)",
@@ -536,6 +1307,24 @@ const styles = {
     padding: "10px 12px",
     outline: "none",
     background: "#fff",
+  },
+  selectFull: {
+    width: "100%",
+    border: "1px solid rgba(0,0,0,.15)",
+    borderRadius: 12,
+    padding: "10px 12px",
+    outline: "none",
+    background: "#fff",
+  },
+  readOnlyBox: {
+    minHeight: 42,
+    display: "flex",
+    alignItems: "center",
+    border: "1px solid rgba(0,0,0,.10)",
+    borderRadius: 12,
+    padding: "10px 12px",
+    background: "rgba(0,0,0,.03)",
+    fontWeight: 700,
   },
   btn: {
     border: "none",
@@ -545,6 +1334,32 @@ const styles = {
     background: "#276678",
     color: "#fff",
     fontWeight: 900,
+  },
+  primaryHeaderBtn: {
+    border: "none",
+    borderRadius: 12,
+    padding: "10px 14px",
+    cursor: "pointer",
+    background: "#276678",
+    color: "#fff",
+    fontWeight: 900,
+  },
+  secondaryBtn: {
+    border: "1px solid rgba(0,0,0,.15)",
+    borderRadius: 12,
+    padding: "10px 14px",
+    cursor: "pointer",
+    background: "#fff",
+    fontWeight: 800,
+  },
+  deleteBtn: {
+    border: "1px solid rgba(239,68,68,.25)",
+    borderRadius: 10,
+    padding: "8px 10px",
+    cursor: "pointer",
+    background: "rgba(239,68,68,.08)",
+    color: "#991b1b",
+    fontWeight: 800,
   },
   refreshBtn: {
     border: "1px solid rgba(0,0,0,.15)",
@@ -579,18 +1394,6 @@ const styles = {
     padding: 12,
     borderRadius: 12,
     marginBottom: 12,
-  },
-  summaryBar: {
-    display: "flex",
-    gap: 16,
-    flexWrap: "wrap",
-    alignItems: "center",
-    padding: "10px 12px",
-    background: "#fff",
-    border: "1px solid rgba(0,0,0,.08)",
-    borderRadius: 14,
-    marginBottom: 12,
-    color: "rgba(0,0,0,.82)",
   },
   workshopSummaryWrap: {
     marginBottom: 14,
@@ -719,7 +1522,7 @@ const modalStyles = {
     gap: 12,
     maxHeight: "70vh",
     overflowY: "auto",
-    WebkitOverflowScrolling: "touch"
+    WebkitOverflowScrolling: "touch",
   },
   footer: {
     padding: 14,
@@ -727,6 +1530,14 @@ const modalStyles = {
     justifyContent: "flex-end",
     background: "#fff",
     borderTop: "1px solid rgba(0,0,0,.08)",
+    gap: 10,
+  },
+  footerInline: {
+    paddingTop: 4,
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 10,
+    flexWrap: "wrap",
   },
   primaryBtn: {
     border: "none",

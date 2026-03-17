@@ -5,17 +5,19 @@ import {
   verifySessionToken,
   SESSION_COOKIE_NAME,
 } from "../../../../lib/session.js";
-
-const WORKSHOPS = {
-  ucenicie_doruCirdei: "Ucenicie - Doru Cîrdei",
-  inchinare_adiKovaci: "Închinare - Adi Kovaci",
-  voluntarvsslujitor_otiTipei: "Voluntar vs Slujitor - Oti Țipei",
-  conducereBisericeasca_mihaiDumitrascu:
-    "Conducere bisericească - Mihai Dumitrașcu",
-};
+import { WORKSHOP_MAP } from "@/app/helpers/strings";
 
 function isPaidStatus(status) {
   return status === "processing" || status === "completed";
+}
+
+function isRegisteredStatus(status) {
+  return (
+    status === "pending" ||
+    status === "on-hold" ||
+    status === "processing" ||
+    status === "completed"
+  );
 }
 
 function getMetaValue(order, key) {
@@ -50,9 +52,12 @@ export async function GET() {
   const orders = await getAllOrdersForProduct({ productId });
 
   let paidOrders = 0;
-  let paidTickets = 0;
+  let paidParticipants = 0;
 
-  const workshopCounts = Object.keys(WORKSHOPS).reduce((acc, key) => {
+  let registeredOrders = 0;
+  let registeredParticipants = 0;
+
+  const workshopCounts = Object.keys(WORKSHOP_MAP).reduce((acc, key) => {
     acc[key] = 0;
     return acc;
   }, {});
@@ -60,7 +65,7 @@ export async function GET() {
   let countedWorkshopTickets = 0;
 
   for (const order of orders) {
-    if (!isPaidStatus(order?.status)) continue;
+    const status = order?.status;
 
     const line = (order.line_items || []).find(
       (li) => Number(li?.product_id) === productId,
@@ -69,35 +74,42 @@ export async function GET() {
     const qty = Number(line?.quantity || 0);
     if (!qty) continue;
 
-    paidOrders += 1;
-    paidTickets += qty;
+    if (isRegisteredStatus(status)) {
+      registeredOrders += 1;
+      registeredParticipants += qty;
 
-    // 1) workshop-ul cumparatorului
-    const buyerWorkshop =
-      getMetaValue(order, "_urme_workshop") ||
-      getMetaValue(order, "_billing_workshop");
+      // workshop-ul cumparatorului
+      const buyerWorkshop =
+        getMetaValue(order, "_urme_workshop") ||
+        getMetaValue(order, "_billing_workshop");
 
-    if (buyerWorkshop) {
-      addWorkshopCount(buyerWorkshop, workshopCounts);
-      countedWorkshopTickets += 1;
-    }
+      if (buyerWorkshop) {
+        addWorkshopCount(buyerWorkshop, workshopCounts);
+        countedWorkshopTickets += 1;
+      }
 
-    // 2) workshop-urile participantilor extra
-    const participants = getMetaValue(order, "_urme_participants");
+      // workshop-urile participantilor extra
+      const participants = getMetaValue(order, "_urme_participants");
 
-    if (Array.isArray(participants)) {
-      for (const participant of participants) {
-        if (participant?.workshop) {
-          addWorkshopCount(participant.workshop, workshopCounts);
-          countedWorkshopTickets += 1;
+      if (Array.isArray(participants)) {
+        for (const participant of participants) {
+          if (participant?.workshop) {
+            addWorkshopCount(participant.workshop, workshopCounts);
+            countedWorkshopTickets += 1;
+          }
         }
       }
     }
+
+    if (isPaidStatus(status)) {
+      paidOrders += 1;
+      paidParticipants += qty;
+    }
   }
 
-  const remaining = Math.max(0, totalStock - paidTickets);
+  const remaining = Math.max(0, totalStock - registeredParticipants);
 
-  const workshops = Object.entries(WORKSHOPS).map(([key, label]) => ({
+  const workshops = Object.entries(WORKSHOP_MAP).map(([key, label]) => ({
     key,
     label,
     count: workshopCounts[key] || 0,
@@ -107,15 +119,20 @@ export async function GET() {
     ok: true,
     productId,
     totalStock,
+
+    registeredOrders,
+    registeredParticipants,
+
     paidOrders,
-    paidTickets,
+    paidParticipants,
+
     remaining,
     workshops,
     workshopCounts,
     countedWorkshopTickets,
     unassignedWorkshopTickets: Math.max(
       0,
-      paidTickets - countedWorkshopTickets,
+      registeredParticipants - countedWorkshopTickets,
     ),
   });
 }

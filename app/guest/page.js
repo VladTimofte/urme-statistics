@@ -54,8 +54,8 @@ export default function GuestPage() {
         <>
           <div style={styles.grid}>
             <div style={styles.card}>
-              <div style={styles.label}>Bilete vandute</div>
-              <div style={styles.value(isMobile)}>{data.paidTickets}</div>
+              <div style={styles.label}>Participanti inscrisi</div>
+              <div style={styles.value(isMobile)}>{data.registeredParticipants}</div>
             </div>
 
             <div style={styles.card}>
