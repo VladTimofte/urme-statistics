@@ -163,6 +163,46 @@ export default function AdminPage() {
 
   async function openEditModalFromTicket(ticket) {
     setSelected(null);
+
+    if (ticket.editable) {
+      setEditState({
+        open: true,
+        loading: false,
+        saving: false,
+        error: "",
+        mode: "edit",
+        sourceTicket: ticket,
+        orderId: ticket.orderId,
+        form: {
+          status: ticket.editable.status || "pending",
+          mainParticipant: {
+            firstName: ticket.editable.mainParticipant?.firstName || "",
+            lastName: ticket.editable.mainParticipant?.lastName || "",
+            church: ticket.editable.mainParticipant?.church || "",
+            county: ticket.editable.mainParticipant?.county || "",
+            department: ticket.editable.mainParticipant?.department || "",
+            ageRange: ticket.editable.mainParticipant?.ageRange || "",
+            heardFrom: ticket.editable.mainParticipant?.heardFrom || "",
+            workshop: ticket.editable.mainParticipant?.workshop || "",
+            email: ticket.editable.mainParticipant?.email || "",
+            phone: ticket.editable.mainParticipant?.phone || "",
+          },
+          extraParticipants: Array.isArray(ticket.editable.extraParticipants)
+            ? ticket.editable.extraParticipants.map((p) => ({
+                firstName: p.firstName || "",
+                lastName: p.lastName || "",
+                workshop: p.workshop || "",
+              }))
+            : [],
+        },
+        focusExtraIndex: ticket.attendeeHasFullDetails
+          ? null
+          : ticket.ticketIndex - 2,
+      });
+      return;
+    }
+
+    // Fallback fetch daca editable lipseste din ticket
     setEditState({
       open: true,
       loading: true,

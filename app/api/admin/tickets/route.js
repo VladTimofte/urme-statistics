@@ -6,6 +6,7 @@ import {
   verifySessionToken,
   SESSION_COOKIE_NAME,
 } from "../../../../lib/session.js";
+import { extractEditableOrder } from "../../../../lib/urme-order.js";
 
 const PRODUCT_ID = Number(process.env.WOO_PRODUCT_ID || 4350);
 
@@ -46,6 +47,8 @@ function buildTicketsFromOrder(order) {
   const purchasedBy = `${buyerFirst} ${buyerLast}`.trim();
   const paidState = statusLabel(order.status);
 
+  const editable = extractEditableOrder(order);
+
   const base = {
     orderId: order.id,
     orderNumber: order.number,
@@ -55,6 +58,7 @@ function buildTicketsFromOrder(order) {
     email: order.billing?.email || "",
     phone: order.billing?.phone || "",
     purchasedBy,
+    editable,
   };
 
   const tickets = [];
