@@ -165,7 +165,7 @@ const styles = {
 
   sublabel: {
     color: "rgba(0,0,0,.4)",
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 6,
     lineHeight: 1.4,
     fontStyle: "italic",

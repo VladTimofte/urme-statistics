@@ -1527,7 +1527,6 @@ const styles = {
   },
   workshopSummaryTitle: {
     fontWeight: 900,
-    marginBottom: 12,
   },
   workshopSummaryGrid: {
     display: "grid",
