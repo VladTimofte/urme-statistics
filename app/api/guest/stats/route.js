@@ -13,7 +13,6 @@ function isPaidStatus(status) {
 
 function isRegisteredStatus(status) {
   return (
-    status === "pending" ||
     status === "on-hold" ||
     status === "processing" ||
     status === "completed"

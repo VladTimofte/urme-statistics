@@ -96,7 +96,13 @@ export const COUNTY_OPTIONS = [
 export const STATUS_OPTIONS = [
   { value: "completed", label: "CASH (Inregistrat! Plata la welcome)" },
   { value: "processing", label: "PAID (Inregistrat! Bilet Platit)" },
+  { value: "on-hold", label: "PAID (Inregistrat! Bilet Redus | STAFF)" },
   { value: "pending", label: "PENDING (Participantul NU este inregistrat)" },
   { value: "cancelled", label: "CANCELLED (Plata neefectuata)" },
   { value: "failed", label: "FAILED (Eroare la plata)" },
+];
+
+export const ATTENDANCE = [
+  { value: "absent", label: "ABSENT" },
+  { value: "prezent", label: "PREZENT" },
 ];

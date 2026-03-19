@@ -9,6 +9,7 @@ import {
   SOURCE_OPTIONS,
   COUNTY_OPTIONS,
   STATUS_OPTIONS,
+  ATTENDANCE,
 } from "../helpers/strings";
 
 function normalizeText(value) {
@@ -128,7 +129,7 @@ export default function AdminPage() {
       count: tickets.filter(
         (t) =>
           t.attendeeWorkshop === key &&
-          (t.orderStatus === "completed" || t.orderStatus === "processing"),
+          (t.orderStatus === "completed" || t.orderStatus === "processing" || t.orderStatus === "on-hold"),
       ).length,
     }));
   }, [tickets]);
@@ -175,6 +176,7 @@ export default function AdminPage() {
         orderId: ticket.orderId,
         form: {
           status: ticket.editable.status || "pending",
+          attendance: ticket.editable.attendance || "absent",
           mainParticipant: {
             firstName: ticket.editable.mainParticipant?.firstName || "",
             lastName: ticket.editable.mainParticipant?.lastName || "",
@@ -232,6 +234,7 @@ export default function AdminPage() {
         loading: false,
         form: {
           status: d.editable?.status || "pending",
+          attendance: d.editable?.attendance || "absent",
           mainParticipant: {
             firstName: d.editable?.mainParticipant?.firstName || "",
             lastName: d.editable?.mainParticipant?.lastName || "",
@@ -409,6 +412,7 @@ export default function AdminPage() {
         </select>
       </div>
 
+      {loading && <div style={styles.loadingBanner}>Se încarcă datele...</div>}
       {err ? <div style={styles.err}>{err}</div> : null}
 
       <div style={styles.workshopSummaryWrap}>
@@ -432,7 +436,15 @@ export default function AdminPage() {
       </div>
 
       {isMobile ? (
-        <div style={{ display: "grid", gap: 10 }}>
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+            opacity: loading ? 0.5 : 1,
+            pointerEvents: loading ? "none" : "auto",
+            transition: "opacity 0.2s",
+          }}
+        >
           {filteredTickets.map((t) => (
             <button
               key={`${t.orderId}-${t.ticketIndex}`}
@@ -477,7 +489,14 @@ export default function AdminPage() {
           {loading ? <div style={styles.card}>Loading...</div> : null}
         </div>
       ) : (
-        <div style={styles.tableWrap}>
+        <div
+          style={{
+            ...styles.tableWrap,
+            opacity: loading ? 0.5 : 1,
+            pointerEvents: loading ? "none" : "auto",
+            transition: "opacity 0.2s",
+          }}
+        >
           <table style={styles.table}>
             <thead>
               <tr>
@@ -684,7 +703,6 @@ function OrderFormModal({
 }
 
 function OrderForm({
-  mode,
   initialData,
   submitLabel,
   onSubmit,
@@ -694,6 +712,7 @@ function OrderForm({
   focusExtraIndex = null,
 }) {
   const [status, setStatus] = useState(initialData?.status || "processing");
+  const [attendance, setAttendance] = useState("absent");
   const [mainParticipant, setMainParticipant] = useState(
     initialData?.mainParticipant || emptyMainParticipant(),
   );
@@ -709,6 +728,7 @@ function OrderForm({
 
   useEffect(() => {
     setStatus(initialData?.status || "processing");
+    setAttendance(initialData?.attendance || "absent");
     setMainParticipant(initialData?.mainParticipant || emptyMainParticipant());
     setExtraParticipants(
       Array.isArray(initialData?.extraParticipants)
@@ -748,6 +768,7 @@ function OrderForm({
   function buildPayload() {
     return {
       status,
+      attendance,
       mainParticipant: {
         firstName: mainParticipant.firstName || "",
         lastName: mainParticipant.lastName || "",
@@ -831,6 +852,19 @@ function OrderForm({
               style={styles.selectFull}
             >
               {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Prezență">
+            <select
+              value={attendance}
+              onChange={(e) => setAttendance(e.target.value)}
+              style={styles.selectFull}
+            >
+              {ATTENDANCE.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -1274,6 +1308,7 @@ function Row({ label, value }) {
 function getPaymentLabel(t) {
   if (t?.orderStatus === "completed") return "CASH";
   if (t?.orderStatus === "cancelled") return "CANCELLED";
+  if (t?.orderStatus === "on-hold") return "PAID | STAFF";
   return t?.paymentState;
 }
 
@@ -1288,7 +1323,7 @@ function badgeStyle(orderStatus) {
     whiteSpace: "nowrap",
   };
 
-  if (orderStatus === "processing") {
+  if (orderStatus === "processing" || orderStatus === "on-hold") {
     return { ...base, background: "rgba(34,197,94,.12)" }; // verde
   }
 
@@ -1300,7 +1335,7 @@ function badgeStyle(orderStatus) {
     return { ...base, background: "rgba(239,68,68,.12)" }; // rosu
   }
 
-  // orice alt status (cancelled, refunded, on-hold etc.)
+  // orice alt status (cancelled, refunded etc.)
   return { ...base, background: "rgba(59,130,246,.12)" }; // albastru
 }
 
@@ -1318,6 +1353,15 @@ const formGridStyles = {
 };
 
 const styles = {
+  loadingBanner: {
+    background: "rgba(39,102,120,.08)",
+    border: "1px solid rgba(39,102,120,.20)",
+    borderRadius: 12,
+    padding: "10px 14px",
+    marginBottom: 12,
+    fontWeight: 700,
+    color: "#276678",
+  },
   wrap: { padding: 20, maxWidth: 1200, margin: "0 auto" },
   header: {
     display: "flex",
