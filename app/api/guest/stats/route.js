@@ -11,12 +11,8 @@ function isPaidStatus(status) {
   return status === "processing" || status === "completed";
 }
 
-function isRegisteredStatus(status) {
-  return (
-    status === "on-hold" ||
-    status === "processing" ||
-    status === "completed"
-  );
+function isStaffStatus(status) {
+  return status === "on-hold";
 }
 
 function getMetaValue(order, key) {
@@ -28,7 +24,6 @@ function getMetaValue(order, key) {
 function addWorkshopCount(workshopKey, workshopCounts) {
   const key = String(workshopKey || "").trim();
   if (!key) return;
-
   if (Object.prototype.hasOwnProperty.call(workshopCounts, key)) {
     workshopCounts[key] += 1;
   }
@@ -50,18 +45,13 @@ export async function GET() {
 
   const orders = await getAllOrdersForProduct({ productId });
 
-  let paidOrders = 0;
   let paidParticipants = 0;
-
-  let registeredOrders = 0;
-  let registeredParticipants = 0;
+  let staffParticipants = 0;
 
   const workshopCounts = Object.keys(WORKSHOP_MAP).reduce((acc, key) => {
     acc[key] = 0;
     return acc;
   }, {});
-
-  let countedWorkshopTickets = 0;
 
   for (const order of orders) {
     const status = order?.status;
@@ -73,40 +63,39 @@ export async function GET() {
     const qty = Number(line?.quantity || 0);
     if (!qty) continue;
 
-    if (isRegisteredStatus(status)) {
-      registeredOrders += 1;
-      registeredParticipants += qty;
+    const paid = isPaidStatus(status);
+    const staff = isStaffStatus(status);
 
-      // workshop-ul cumparatorului
+    if (paid) {
+      paidParticipants += qty;
+    }
+
+    if (staff) {
+      staffParticipants += qty;
+    }
+
+    // Workshop-urile se numara pentru PAID si STAFF
+    if (paid || staff) {
       const buyerWorkshop =
         getMetaValue(order, "_urme_workshop") ||
         getMetaValue(order, "_billing_workshop");
 
       if (buyerWorkshop) {
         addWorkshopCount(buyerWorkshop, workshopCounts);
-        countedWorkshopTickets += 1;
       }
 
-      // workshop-urile participantilor extra
       const participants = getMetaValue(order, "_urme_participants");
-
       if (Array.isArray(participants)) {
         for (const participant of participants) {
           if (participant?.workshop) {
             addWorkshopCount(participant.workshop, workshopCounts);
-            countedWorkshopTickets += 1;
           }
         }
       }
     }
-
-    if (isPaidStatus(status)) {
-      paidOrders += 1;
-      paidParticipants += qty;
-    }
   }
 
-  const remaining = Math.max(0, totalStock - registeredParticipants);
+  const remaining = Math.max(0, totalStock - paidParticipants);
 
   const workshops = Object.entries(WORKSHOP_MAP).map(([key, label]) => ({
     key,
@@ -118,20 +107,9 @@ export async function GET() {
     ok: true,
     productId,
     totalStock,
-
-    registeredOrders,
-    registeredParticipants,
-
-    paidOrders,
     paidParticipants,
-
+    staffParticipants,
     remaining,
     workshops,
-    workshopCounts,
-    countedWorkshopTickets,
-    unassignedWorkshopTickets: Math.max(
-      0,
-      registeredParticipants - countedWorkshopTickets,
-    ),
   });
 }

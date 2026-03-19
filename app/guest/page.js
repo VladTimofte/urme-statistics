@@ -26,7 +26,6 @@ export default function GuestPage() {
       try {
         const res = await fetch("/api/guest/stats", { cache: "no-store" });
         const d = await res.json();
-        console.log("d", d);
 
         if (!res.ok || !d.ok) throw new Error(d?.error || "Failed");
         setData(d);
@@ -55,19 +54,25 @@ export default function GuestPage() {
           <div style={styles.grid}>
             <div style={styles.card}>
               <div style={styles.label}>Participanti inscrisi</div>
-              <div style={styles.value(isMobile)}>{data.registeredParticipants}</div>
+              <div style={styles.value(isMobile)}>
+                {data.paidParticipants}
+                <span style={styles.outOf}>/ {data.totalStock}</span>
+              </div>
             </div>
 
             <div style={styles.card}>
-              <div style={styles.label}>Total bilete</div>
-              <div style={styles.value(isMobile)}>{data.totalStock}</div>
-            </div>
-
-            <div style={styles.card}>
-              <div style={styles.label}>Ramase</div>
+              <div style={styles.label}>Bilete ramase</div>
               <div style={styles.value(isMobile)}>{data.remaining}</div>
             </div>
 
+            <div style={styles.card}>
+              <div style={styles.label}>Bilete STAFF</div>
+              <div style={styles.value(isMobile)}>{data.staffParticipants}</div>
+              <div style={styles.sublabel}>
+                Bilete STAFF nu reduc stocul de 150, dar sunt incluse în
+                statisticile workshop-urilor
+              </div>
+            </div>
           </div>
 
           <div style={styles.section}>
@@ -158,6 +163,14 @@ const styles = {
     wordBreak: "break-word",
   },
 
+  sublabel: {
+    color: "rgba(0,0,0,.4)",
+    fontSize: 11,
+    marginTop: 6,
+    lineHeight: 1.4,
+    fontStyle: "italic",
+  },
+
   value: (isMobile) => ({
     fontSize: isMobile ? 24 : 28,
     fontWeight: 800,
@@ -165,5 +178,14 @@ const styles = {
     lineHeight: 1.15,
     overflowWrap: "anywhere",
     wordBreak: "break-word",
+    display: "flex",
+    alignItems: "baseline",
+    gap: 6,
   }),
+
+  outOf: {
+    fontSize: 16,
+    fontWeight: 500,
+    color: "rgba(0,0,0,.4)",
+  },
 };

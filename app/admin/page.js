@@ -115,10 +115,22 @@ export default function AdminPage() {
   }, []);
 
   const counts = useMemo(() => {
-    const c = { PAID: 0, PENDING: 0, FAILED: 0 };
+    const c = { PAID: 0, STAFF: 0, PENDING: 0, FAILED: 0 };
+
     for (const t of tickets) {
-      c[t.paymentState] = (c[t.paymentState] || 0) + 1;
+      const status = t.orderStatus;
+
+      if (["processing", "completed"].includes(status)) {
+        c.PAID++;
+      } else if (status === "on-hold") {
+        c.STAFF++;
+      } else if (status === "pending") {
+        c.PENDING++;
+      } else if (["failed", "cancelled"].includes(status)) {
+        c.FAILED++;
+      }
     }
+
     return c;
   }, [tickets]);
 
@@ -129,7 +141,9 @@ export default function AdminPage() {
       count: tickets.filter(
         (t) =>
           t.attendeeWorkshop === key &&
-          (t.orderStatus === "completed" || t.orderStatus === "processing" || t.orderStatus === "on-hold"),
+          (t.orderStatus === "completed" ||
+            t.orderStatus === "processing" ||
+            t.orderStatus === "on-hold"),
       ).length,
     }));
   }, [tickets]);
@@ -349,7 +363,17 @@ export default function AdminPage() {
         <div>
           <h1 style={{ margin: 0 }}>URME</h1>
           <div style={{ color: "rgba(0,0,0,.65)", marginTop: 4 }}>
-            Bilete Cumparate: <b>{counts?.PAID} / 150</b>
+            {!!counts?.PAID && (
+              <>
+                Bilete Cumparate: <b>{counts?.PAID} / 150</b>
+              </>
+            )}
+            {!!counts?.STAFF && (
+              <>
+                {" "}
+                | Bilete STAFF: <b>{counts.STAFF}</b>
+              </>
+            )}
             {!!counts?.PENDING && (
               <>
                 {" "}
