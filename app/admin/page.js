@@ -421,7 +421,7 @@ export default function AdminPage() {
           <input
             style={{
               ...styles.input,
-              minWidth: "75%",
+              minWidth: "85%",
             }}
             placeholder="Cautare dupa nume/prenume participant sau cumparat de..."
             value={q}
@@ -434,7 +434,7 @@ export default function AdminPage() {
                 position: "absolute",
                 right: 10,
                 top: "50%",
-                transform: "translateY(-50%)",
+                transform: "translateY(-50%) translateX(-200%)",
                 border: "none",
                 background: "none",
                 cursor: "pointer",
