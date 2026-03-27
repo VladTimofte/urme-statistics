@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   WORKSHOP_MAP,
   displayWorkshop,
@@ -40,6 +40,7 @@ function emptyExtraParticipant() {
     firstName: "",
     lastName: "",
     workshop: "",
+    attendance: "absent",
   };
 }
 
@@ -208,6 +209,7 @@ export default function AdminPage() {
                 firstName: p.firstName || "",
                 lastName: p.lastName || "",
                 workshop: p.workshop || "",
+                attendance: p.attendance || "absent",
               }))
             : [],
         },
@@ -415,12 +417,39 @@ export default function AdminPage() {
       </div>
 
       <div style={styles.controls}>
-        <input
-          style={styles.input}
-          placeholder="Cautare dupa nume/prenume participant sau cumparat de..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        <div style={{ position: "relative", minWidth: 260, flex: 1 }}>
+          <input
+            style={{
+              ...styles.input,
+              minWidth: "100%",
+            }}
+            placeholder="Cautare dupa nume/prenume participant sau cumparat de..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          {q && (
+            <button
+              onClick={() => setQ("")}
+              style={{
+                position: "absolute",
+                right: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                color: "rgba(0,0,0)",
+                fontSize: 16,
+                fontWeight: 600,
+                lineHeight: 1,
+                padding: 2,
+              }}
+              aria-label="Sterge cautarea"
+            >
+              ✕
+            </button>
+          )}
+        </div>
 
         <select
           style={styles.select}
@@ -735,6 +764,8 @@ function OrderForm({
   saving = false,
   focusExtraIndex = null,
 }) {
+  const focusedExtraRef = useRef(null);
+
   const [status, setStatus] = useState(initialData?.status || "processing");
   const [attendance, setAttendance] = useState("absent");
   const [mainParticipant, setMainParticipant] = useState(
@@ -760,6 +791,17 @@ function OrderForm({
         : [],
     );
   }, [initialData]);
+
+  useEffect(() => {
+  if (focusExtraIndex !== null && focusedExtraRef.current) {
+    setTimeout(() => {
+      focusedExtraRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 100);
+  }
+}, [focusExtraIndex]);
 
   function updateMain(field, value) {
     setMainParticipant((prev) => ({
@@ -809,6 +851,7 @@ function OrderForm({
         firstName: p.firstName || "",
         lastName: p.lastName || "",
         workshop: p.workshop || "",
+        attendance: p?.attendance || "absent",
       })),
     };
   }
@@ -1041,6 +1084,7 @@ function OrderForm({
                     ? "0 0 0 4px rgba(39,102,120,.10)"
                     : "none",
                 }}
+                ref={isFocused ? focusedExtraRef : null}
               >
                 <div
                   style={{
@@ -1066,6 +1110,21 @@ function OrderForm({
                 </div>
 
                 <div style={formGridStyles.threeCols}>
+                  <Field label="Prezență">
+                    <select
+                      value={p.attendance || "absent"}
+                      onChange={(e) =>
+                        updateExtra(index, "attendance", e.target.value)
+                      }
+                      style={styles.selectFull}
+                    >
+                      {ATTENDANCE.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                   <Field label="Nume *">
                     <input
                       value={p.firstName}
@@ -1397,7 +1456,7 @@ const styles = {
   },
   controls: {
     display: "flex",
-    gap: 10,
+    gap: 20,
     marginBottom: 12,
     flexWrap: "wrap",
   },
@@ -1408,6 +1467,7 @@ const styles = {
     borderRadius: 12,
     padding: "10px 12px",
     outline: "none",
+    fontSize: 16,
   },
   inputFull: {
     width: "85%",
