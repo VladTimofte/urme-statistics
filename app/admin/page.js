@@ -74,11 +74,8 @@ export default function AdminPage() {
   async function load() {
     setLoading(true);
     setErr("");
-
     try {
-      const res = await fetch("/api/admin/tickets", {
-        cache: "no-store",
-      });
+      const res = await fetch("/api/admin/tickets", { cache: "no-store" });
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d?.error || "Failed");
       setTickets(d.tickets || []);
@@ -117,21 +114,13 @@ export default function AdminPage() {
 
   const counts = useMemo(() => {
     const c = { PAID: 0, STAFF: 0, PENDING: 0, FAILED: 0 };
-
     for (const t of tickets) {
       const status = t.orderStatus;
-
-      if (["processing", "completed"].includes(status)) {
-        c.PAID++;
-      } else if (status === "on-hold") {
-        c.STAFF++;
-      } else if (status === "pending") {
-        c.PENDING++;
-      } else if (["failed", "cancelled"].includes(status)) {
-        c.FAILED++;
-      }
+      if (["processing", "completed"].includes(status)) c.PAID++;
+      else if (status === "on-hold") c.STAFF++;
+      else if (status === "pending") c.PENDING++;
+      else if (["failed", "cancelled"].includes(status)) c.FAILED++;
     }
-
     return c;
   }, [tickets]);
 
@@ -151,19 +140,15 @@ export default function AdminPage() {
 
   const filteredTickets = useMemo(() => {
     const normalizedQ = normalizeText(q);
-
     return tickets.filter((t) => {
       const matchesWorkshop = selectedWorkshop
         ? t.attendeeWorkshop === selectedWorkshop
         : true;
-
       if (!matchesWorkshop) return false;
       if (!normalizedQ) return true;
-
       const haystack = [t.attendeeFirstName, t.attendeeLastName, t.purchasedBy]
         .map(normalizeText)
         .join(" ");
-
       return haystack.includes(normalizedQ);
     });
   }, [tickets, q, selectedWorkshop]);
@@ -220,7 +205,6 @@ export default function AdminPage() {
       return;
     }
 
-    // Fallback fetch daca editable lipseste din ticket
     setEditState({
       open: true,
       loading: true,
@@ -240,11 +224,8 @@ export default function AdminPage() {
         cache: "no-store",
       });
       const d = await res.json();
-
-      if (!res.ok || !d.ok) {
+      if (!res.ok || !d.ok)
         throw new Error(d?.error || "Nu am putut incarca comanda.");
-      }
-
       setEditState((prev) => ({
         ...prev,
         loading: false,
@@ -299,14 +280,10 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/orders", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const d = await res.json();
-
       if (!res.ok || !d.ok) {
         throw new Error(
           Array.isArray(d?.details) && d.details.length
@@ -314,7 +291,6 @@ export default function AdminPage() {
             : d?.error || "Nu am putut crea comanda.",
         );
       }
-
       closeCreateModal();
       await load();
     } catch (e) {
@@ -325,17 +301,12 @@ export default function AdminPage() {
   async function handleEditSubmit(payload) {
     try {
       setEditState((prev) => ({ ...prev, saving: true, error: "" }));
-
       const res = await fetch(`/api/admin/orders/${editState.orderId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const d = await res.json();
-
       if (!res.ok || !d.ok) {
         throw new Error(
           Array.isArray(d?.details) && d.details.length
@@ -343,7 +314,6 @@ export default function AdminPage() {
             : d?.error || "Nu am putut salva modificarile.",
         );
       }
-
       closeEditModal();
       await load();
     } catch (e) {
@@ -354,10 +324,6 @@ export default function AdminPage() {
       }));
     }
   }
-
-  useEffect(() => {
-    console.log("filteredTickets", filteredTickets);
-  }, [filteredTickets]);
 
   return (
     <div style={styles.wrap}>
@@ -395,11 +361,9 @@ export default function AdminPage() {
           <button onClick={openCreateModal} style={styles.primaryHeaderBtn}>
             + Adauga inscriere
           </button>
-
           <a href="/api/admin/tickets.csv" style={styles.csvBtn}>
             Download CSV
           </a>
-
           <button
             onClick={refreshTickets}
             style={styles.refreshBtn}
@@ -409,7 +373,6 @@ export default function AdminPage() {
           >
             {loading ? "..." : "↻"}
           </button>
-
           <button onClick={logout} style={styles.outBtn}>
             Logout
           </button>
@@ -419,10 +382,7 @@ export default function AdminPage() {
       <div style={styles.controls}>
         <div style={{ position: "relative", minWidth: 260, flex: 1 }}>
           <input
-            style={{
-              ...styles.input,
-              minWidth: "85%",
-            }}
+            style={{ ...styles.input, minWidth: "85%" }}
             placeholder="Cautare dupa nume/prenume participant sau cumparat de..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -514,7 +474,6 @@ export default function AdminPage() {
                     (t.attendeeLastName || "")}
                 </div>
               </div>
-
               <div style={styles.mobileMeta}>
                 <div>
                   <b>Workshop:</b> {displayWorkshop(t.attendeeWorkshop) || "-"}
@@ -526,7 +485,6 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
-
               <div
                 style={{ marginTop: 8, color: "rgba(0,0,0,.6)", fontSize: 12 }}
               >
@@ -534,11 +492,9 @@ export default function AdminPage() {
               </div>
             </button>
           ))}
-
           {!loading && filteredTickets.length === 0 ? (
             <div style={styles.card}>No results</div>
           ) : null}
-
           {loading ? <div style={styles.card}>Loading...</div> : null}
         </div>
       ) : (
@@ -606,7 +562,6 @@ export default function AdminPage() {
                   </td>
                 </tr>
               ))}
-
               {!loading && filteredTickets.length === 0 ? (
                 <tr>
                   <td style={styles.td} colSpan={6}>
@@ -653,7 +608,11 @@ export default function AdminPage() {
   );
 }
 
+// ─── EditOrderModal ────────────────────────────────────────────────────────────
+
 function EditOrderModal({ state, onClose, onSubmit }) {
+  const submitRef = useRef(null);
+
   useEffect(() => {
     function onKey(e) {
       if (e.key === "Escape") onClose();
@@ -665,16 +624,14 @@ function EditOrderModal({ state, onClose, onSubmit }) {
   return (
     <div style={modalStyles.backdrop} onMouseDown={onClose}>
       <div
-        style={{ ...modalStyles.modal, maxWidth: 920 }}
+        style={modalStyles.modalFlex}
         onMouseDown={(e) => e.stopPropagation()}
       >
+        {/* Head - fix */}
         <div style={modalStyles.head}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 900 }}>
-              Editeaza inscriere
-            </div>
+          <div style={{ fontSize: 18, fontWeight: 900 }}>
+            Editeaza inscriere
           </div>
-
           <button
             onClick={onClose}
             style={modalStyles.closeBtn}
@@ -684,6 +641,7 @@ function EditOrderModal({ state, onClose, onSubmit }) {
           </button>
         </div>
 
+        {/* Body - scrollabil */}
         <div style={modalStyles.body}>
           {state.loading ? (
             <div style={styles.card}>Se incarca comanda...</div>
@@ -693,19 +651,35 @@ function EditOrderModal({ state, onClose, onSubmit }) {
             <OrderForm
               mode="edit"
               initialData={state.form}
-              submitLabel={state.saving ? "Se salveaza..." : "Salveaza"}
               error={state.error}
               saving={state.saving}
               focusExtraIndex={state.focusExtraIndex}
               onSubmit={onSubmit}
-              onCancel={onClose}
+              submitRef={submitRef}
             />
           ) : null}
+        </div>
+
+        {/* Footer - fix */}
+        <div style={modalStyles.footer}>
+          <button type="button" onClick={onClose} style={styles.outBtn}>
+            Anuleaza
+          </button>
+          <button
+            type="button"
+            style={modalStyles.primaryBtn}
+            disabled={state.saving || state.loading || !state.form}
+            onClick={() => submitRef.current?.()}
+          >
+            {state.saving ? "Se proceseaza..." : "Salveaza"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
+
+// ─── OrderFormModal ────────────────────────────────────────────────────────────
 
 function OrderFormModal({
   mode,
@@ -715,6 +689,9 @@ function OrderFormModal({
   onClose,
   onSubmit,
 }) {
+  const submitRef = useRef(null);
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     function onKey(e) {
       if (e.key === "Escape") onClose();
@@ -723,15 +700,24 @@ function OrderFormModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  async function handleSubmit(payload) {
+    setSaving(true);
+    try {
+      await onSubmit(payload);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div style={modalStyles.backdrop} onMouseDown={onClose}>
       <div
-        style={{ ...modalStyles.modal, maxWidth: 920 }}
+        style={modalStyles.modalFlex}
         onMouseDown={(e) => e.stopPropagation()}
       >
+        {/* Head - fix */}
         <div style={modalStyles.head}>
           <div style={{ fontSize: 18, fontWeight: 900 }}>{title}</div>
-
           <button
             onClick={onClose}
             style={modalStyles.closeBtn}
@@ -741,33 +727,53 @@ function OrderFormModal({
           </button>
         </div>
 
+        {/* Body - scrollabil */}
         <div style={modalStyles.body}>
           <OrderForm
             mode={mode}
             initialData={initialData}
-            submitLabel={submitLabel}
-            onSubmit={onSubmit}
-            onCancel={onClose}
+            onSubmit={handleSubmit}
+            submitRef={submitRef}
           />
+        </div>
+
+        {/* Footer - fix */}
+        <div style={modalStyles.footer}>
+          <button type="button" onClick={onClose} style={styles.outBtn}>
+            Anuleaza
+          </button>
+          <button
+            type="button"
+            style={modalStyles.primaryBtn}
+            disabled={saving}
+            onClick={() => submitRef.current?.()}
+          >
+            {saving ? "Se proceseaza..." : submitLabel}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
+// ─── OrderForm ─────────────────────────────────────────────────────────────────
+// Nu mai randeaza propriile butoane de submit/cancel.
+// Expune handleSubmit prin submitRef catre footer-ul din modal.
+
 function OrderForm({
   initialData,
-  submitLabel,
   onSubmit,
-  onCancel,
   error = "",
   saving = false,
   focusExtraIndex = null,
+  submitRef,
 }) {
   const focusedExtraRef = useRef(null);
 
   const [status, setStatus] = useState(initialData?.status || "processing");
-  const [attendance, setAttendance] = useState("absent");
+  const [attendance, setAttendance] = useState(
+    initialData?.attendance || "absent",
+  );
   const [mainParticipant, setMainParticipant] = useState(
     initialData?.mainParticipant || emptyMainParticipant(),
   );
@@ -778,8 +784,6 @@ function OrderForm({
   );
   const [localError, setLocalError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  const effectiveSaving = saving || submitting;
 
   useEffect(() => {
     setStatus(initialData?.status || "processing");
@@ -804,22 +808,12 @@ function OrderForm({
   }, [focusExtraIndex]);
 
   function updateMain(field, value) {
-    setMainParticipant((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setMainParticipant((prev) => ({ ...prev, [field]: value }));
   }
 
   function updateExtra(index, field, value) {
     setExtraParticipants((prev) =>
-      prev.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              [field]: value,
-            }
-          : item,
-      ),
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
     );
   }
 
@@ -857,44 +851,33 @@ function OrderForm({
   }
 
   function validate() {
-    if (!String(mainParticipant.firstName || "").trim()) {
+    if (!String(mainParticipant.firstName || "").trim())
       return "Numele participantului principal este obligatoriu.";
-    }
-    if (!String(mainParticipant.lastName || "").trim()) {
+    if (!String(mainParticipant.lastName || "").trim())
       return "Prenumele participantului principal este obligatoriu.";
-    }
-    if (!String(mainParticipant.workshop || "").trim()) {
+    if (!String(mainParticipant.workshop || "").trim())
       return "Workshop-ul participantului principal este obligatoriu.";
-    }
-
     for (let i = 0; i < extraParticipants.length; i++) {
       const p = extraParticipants[i];
       const nr = i + 1;
-
-      if (!String(p.firstName || "").trim()) {
+      if (!String(p.firstName || "").trim())
         return `Numele pentru participantul extra ${nr} este obligatoriu.`;
-      }
-      if (!String(p.lastName || "").trim()) {
+      if (!String(p.lastName || "").trim())
         return `Prenumele pentru participantul extra ${nr} este obligatoriu.`;
-      }
-      if (!String(p.workshop || "").trim()) {
+      if (!String(p.workshop || "").trim())
         return `Workshop-ul pentru participantul extra ${nr} este obligatoriu.`;
-      }
     }
-
     return "";
   }
 
   async function handleSubmit(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setLocalError("");
-
     const validationError = validate();
     if (validationError) {
       setLocalError(validationError);
       return;
     }
-
     try {
       setSubmitting(true);
       await onSubmit(buildPayload());
@@ -904,6 +887,11 @@ function OrderForm({
       setSubmitting(false);
     }
   }
+
+  // Expune handleSubmit catre footer-ul din modal
+  useEffect(() => {
+    if (submitRef) submitRef.current = handleSubmit;
+  });
 
   return (
     <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
@@ -955,7 +943,6 @@ function OrderForm({
               style={styles.inputFull}
             />
           </Field>
-
           <Field label="Prenume *">
             <input
               value={mainParticipant.lastName}
@@ -963,7 +950,6 @@ function OrderForm({
               style={styles.inputFull}
             />
           </Field>
-
           <Field label="Workshop *">
             <select
               value={mainParticipant.workshop}
@@ -978,7 +964,6 @@ function OrderForm({
               ))}
             </select>
           </Field>
-
           <Field label="Biserica">
             <input
               value={mainParticipant.church}
@@ -986,7 +971,6 @@ function OrderForm({
               style={styles.inputFull}
             />
           </Field>
-
           <Field label="Judet">
             <select
               value={mainParticipant.county}
@@ -1000,7 +984,6 @@ function OrderForm({
               ))}
             </select>
           </Field>
-
           <Field label="Departament">
             <input
               value={mainParticipant.department}
@@ -1009,7 +992,6 @@ function OrderForm({
               placeholder="Ex: tineret, inchinare, copii, tehnic"
             />
           </Field>
-
           <Field label="Varsta">
             <select
               value={mainParticipant.ageRange}
@@ -1023,7 +1005,6 @@ function OrderForm({
               ))}
             </select>
           </Field>
-
           <Field label="Sursa">
             <select
               value={mainParticipant.heardFrom}
@@ -1037,7 +1018,6 @@ function OrderForm({
               ))}
             </select>
           </Field>
-
           <Field label="Email">
             <input
               type="email"
@@ -1047,7 +1027,6 @@ function OrderForm({
               placeholder="Gol = empty@empty.na"
             />
           </Field>
-
           <Field label="Telefon">
             <input
               type="tel"
@@ -1074,7 +1053,6 @@ function OrderForm({
 
           {extraParticipants.map((p, index) => {
             const isFocused = focusExtraIndex === index;
-
             return (
               <div
                 key={index}
@@ -1104,7 +1082,6 @@ function OrderForm({
                   <div style={{ fontWeight: 900 }}>
                     Participant extra #{index + 1}
                   </div>
-
                   <button
                     type="button"
                     onClick={() => removeExtraParticipant(index)}
@@ -1147,7 +1124,6 @@ function OrderForm({
                       style={styles.inputFull}
                     />
                   </Field>
-
                   <Field label="Prenume *">
                     <input
                       value={p.lastName}
@@ -1157,7 +1133,6 @@ function OrderForm({
                       style={styles.inputFull}
                     />
                   </Field>
-
                   <Field label="Workshop *">
                     <select
                       value={p.workshop}
@@ -1190,34 +1165,16 @@ function OrderForm({
           </div>
         </div>
       </Section>
-
-      <div style={modalStyles.footerInline}>
-        <button type="button" onClick={onCancel} style={styles.outBtn}>
-          Anuleaza
-        </button>
-
-        <button
-          type="submit"
-          style={modalStyles.primaryBtn}
-          disabled={effectiveSaving}
-        >
-          {effectiveSaving ? "Se proceseaza..." : submitLabel}
-        </button>
-      </div>
     </form>
   );
 }
 
+// ─── Componente mici ───────────────────────────────────────────────────────────
+
 function Field({ label, children }) {
   return (
     <label style={{ display: "grid", gap: 6 }}>
-      <div
-        style={{
-          color: "rgba(0,0,0,.72)",
-          fontSize: 13,
-          fontWeight: 700,
-        }}
-      >
+      <div style={{ color: "rgba(0,0,0,.72)", fontSize: 13, fontWeight: 700 }}>
         {label}
       </div>
       {children}
@@ -1258,7 +1215,6 @@ function TicketModal({ ticket, onClose, onEdit }) {
               </div>
             </div>
           </div>
-
           <button
             onClick={onClose}
             style={modalStyles.closeBtn}
@@ -1323,7 +1279,7 @@ function TicketModal({ ticket, onClose, onEdit }) {
               </>
             ) : (
               <div style={{ color: "rgba(0,0,0,.7)", lineHeight: 1.45 }}>
-                Acest participant este “extra” (bilet cumparat de{" "}
+                Acest participant este "extra" (bilet cumparat de{" "}
                 <b>{ticket.purchasedBy || "altcineva"}</b>), deci nu are
                 judet/biserica/etc in comanda.
               </div>
@@ -1363,7 +1319,6 @@ function Section({ title, children }) {
 function Row({ label, value }) {
   const isSmall =
     typeof window !== "undefined" ? window.innerWidth < 520 : false;
-
   return (
     <div
       style={{
@@ -1375,16 +1330,9 @@ function Row({ label, value }) {
         alignItems: "start",
       }}
     >
-      <div
-        style={{
-          color: "rgba(0,0,0,.65)",
-          fontSize: 13,
-          lineHeight: 1.4,
-        }}
-      >
+      <div style={{ color: "rgba(0,0,0,.65)", fontSize: 13, lineHeight: 1.4 }}>
         {label}
       </div>
-
       <div
         style={{
           fontWeight: 700,
@@ -1400,6 +1348,8 @@ function Row({ label, value }) {
     </div>
   );
 }
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function getPaymentLabel(t) {
   if (t?.orderStatus === "completed") return "CASH";
@@ -1418,22 +1368,16 @@ function badgeStyle(orderStatus) {
     border: "1px solid rgba(0,0,0,.10)",
     whiteSpace: "nowrap",
   };
-
-  if (orderStatus === "processing" || orderStatus === "on-hold") {
-    return { ...base, background: "rgba(34,197,94,.12)" }; // verde
-  }
-
-  if (orderStatus === "pending" || orderStatus === "completed") {
-    return { ...base, background: "rgba(234,179,8,.14)" }; // galben
-  }
-
-  if (orderStatus === "failed" || orderStatus === "cancelled") {
-    return { ...base, background: "rgba(239,68,68,.12)" }; // rosu
-  }
-
-  // orice alt status (cancelled, refunded etc.)
-  return { ...base, background: "rgba(59,130,246,.12)" }; // albastru
+  if (orderStatus === "processing" || orderStatus === "on-hold")
+    return { ...base, background: "rgba(34,197,94,.12)" };
+  if (orderStatus === "pending" || orderStatus === "completed")
+    return { ...base, background: "rgba(234,179,8,.14)" };
+  if (orderStatus === "failed" || orderStatus === "cancelled")
+    return { ...base, background: "rgba(239,68,68,.12)" };
+  return { ...base, background: "rgba(59,130,246,.12)" };
 }
+
+// ─── Styles ────────────────────────────────────────────────────────────────────
 
 const formGridStyles = {
   twoCols: {
@@ -1467,12 +1411,7 @@ const styles = {
     marginBottom: 16,
     flexWrap: "wrap",
   },
-  controls: {
-    display: "flex",
-    gap: 20,
-    marginBottom: 12,
-    flexWrap: "wrap",
-  },
+  controls: { display: "flex", gap: 20, marginBottom: 12, flexWrap: "wrap" },
   input: {
     minWidth: 260,
     flex: 1,
@@ -1601,9 +1540,7 @@ const styles = {
     alignItems: "center",
     gap: 6,
   },
-  workshopSummaryTitle: {
-    fontWeight: 900,
-  },
+  workshopSummaryTitle: { fontWeight: 900 },
   workshopSummaryGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -1621,10 +1558,7 @@ const styles = {
     lineHeight: 1.4,
     marginBottom: 8,
   },
-  workshopSummaryCount: {
-    fontSize: 22,
-    fontWeight: 900,
-  },
+  workshopSummaryCount: { fontSize: 22, fontWeight: 900 },
   tableWrap: {
     overflow: "auto",
     border: "1px solid rgba(0,0,0,.08)",
@@ -1687,6 +1621,7 @@ const modalStyles = {
     padding: 14,
     zIndex: 9999,
   },
+  // Modal original - folosit de TicketModal (read-only, fara scroll lung)
   modal: {
     width: "100%",
     maxWidth: 720,
@@ -1696,6 +1631,19 @@ const modalStyles = {
     boxShadow: "0 20px 80px rgba(0,0,0,.25)",
     overflow: "hidden",
   },
+  // Modal cu footer static - folosit de EditOrderModal si OrderFormModal
+  modalFlex: {
+    width: "100%",
+    maxWidth: 920,
+    maxHeight: "90vh",
+    background: "#f8f9fb",
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,.25)",
+    boxShadow: "0 20px 80px rgba(0,0,0,.25)",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+  },
   head: {
     display: "flex",
     alignItems: "flex-start",
@@ -1704,6 +1652,7 @@ const modalStyles = {
     padding: 14,
     background: "#fff",
     borderBottom: "1px solid rgba(0,0,0,.08)",
+    flexShrink: 0,
   },
   closeBtn: {
     border: "1px solid rgba(0,0,0,.15)",
@@ -1718,9 +1667,10 @@ const modalStyles = {
     padding: 14,
     display: "grid",
     gap: 12,
-    maxHeight: "70vh",
     overflowY: "auto",
     WebkitOverflowScrolling: "touch",
+    flex: 1,
+    minHeight: 0,
   },
   footer: {
     padding: 14,
@@ -1729,13 +1679,7 @@ const modalStyles = {
     background: "#fff",
     borderTop: "1px solid rgba(0,0,0,.08)",
     gap: 10,
-  },
-  footerInline: {
-    paddingTop: 4,
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 10,
-    flexWrap: "wrap",
+    flexShrink: 0,
   },
   primaryBtn: {
     border: "none",
