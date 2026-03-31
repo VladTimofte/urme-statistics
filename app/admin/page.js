@@ -1279,7 +1279,7 @@ function TicketModal({ ticket, onClose, onEdit }) {
               </>
             ) : (
               <div style={{ color: "rgba(0,0,0,.7)", lineHeight: 1.45 }}>
-                Acest participant este "extra" (bilet cumparat de{" "}
+                Acest participant este extra (bilet cumparat de{" "}
                 <b>{ticket.purchasedBy || "altcineva"}</b>), deci nu are
                 judet/biserica/etc in comanda.
               </div>
