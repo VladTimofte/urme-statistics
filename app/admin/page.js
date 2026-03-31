@@ -793,15 +793,15 @@ function OrderForm({
   }, [initialData]);
 
   useEffect(() => {
-  if (focusExtraIndex !== null && focusedExtraRef.current) {
-    setTimeout(() => {
-      focusedExtraRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }, 100);
-  }
-}, [focusExtraIndex]);
+    if (focusExtraIndex !== null && focusedExtraRef.current) {
+      setTimeout(() => {
+        focusedExtraRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 100);
+    }
+  }, [focusExtraIndex]);
 
   function updateMain(field, value) {
     setMainParticipant((prev) => ({
@@ -925,7 +925,14 @@ function OrderForm({
               ))}
             </select>
           </Field>
-          <Field label="Prezență">
+        </div>
+      </Section>
+
+      <Section title="Participant principal / cumparator bilete">
+        <div style={formGridStyles.twoCols}>
+          <Field
+            label={attendance === "absent" ? "🔴 Prezență" : "🟢 Prezență"}
+          >
             <select
               value={attendance}
               onChange={(e) => setAttendance(e.target.value)}
@@ -939,9 +946,7 @@ function OrderForm({
             </select>
           </Field>
         </div>
-      </Section>
-
-      <Section title="Participant principal / cumparator bilete">
+        <br />
         <div style={formGridStyles.twoCols}>
           <Field label="Nume *">
             <input
@@ -1109,8 +1114,12 @@ function OrderForm({
                   </button>
                 </div>
 
-                <div style={formGridStyles.threeCols}>
-                  <Field label="Prezență">
+                <div style={formGridStyles.twoCols}>
+                  <Field
+                    label={
+                      p.attendance === "absent" ? "🔴 Prezență" : "🟢 Prezență"
+                    }
+                  >
                     <select
                       value={p.attendance || "absent"}
                       onChange={(e) =>
@@ -1125,6 +1134,10 @@ function OrderForm({
                       ))}
                     </select>
                   </Field>
+                </div>
+                <br />
+
+                <div style={formGridStyles.threeCols}>
                   <Field label="Nume *">
                     <input
                       value={p.firstName}
@@ -1476,6 +1489,7 @@ const styles = {
     padding: "10px 12px",
     outline: "none",
     background: "#fff",
+    fontSize: 16,
   },
   select: {
     minWidth: 280,
@@ -1484,6 +1498,7 @@ const styles = {
     padding: "10px 12px",
     outline: "none",
     background: "#fff",
+    fontSize: 16,
   },
   selectFull: {
     width: "100%",
@@ -1492,6 +1507,7 @@ const styles = {
     padding: "10px 12px",
     outline: "none",
     background: "#fff",
+    fontSize: 16,
   },
   readOnlyBox: {
     minHeight: 42,
@@ -1618,7 +1634,7 @@ const styles = {
   table: { width: "100%", borderCollapse: "collapse", minWidth: 980 },
   th: {
     textAlign: "left",
-    fontSize: 12,
+    fontSize: 16,
     letterSpacing: ".04em",
     textTransform: "uppercase",
     color: "rgba(0,0,0,.65)",
@@ -1656,7 +1672,7 @@ const styles = {
     marginTop: 10,
     display: "grid",
     gap: 6,
-    fontSize: 13,
+    fontSize: 16,
     color: "rgba(0,0,0,.85)",
   },
 };
