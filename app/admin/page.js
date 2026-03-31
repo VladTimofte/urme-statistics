@@ -1618,7 +1618,7 @@ const modalStyles = {
     background: "rgba(0,0,0,.45)",
     display: "grid",
     placeItems: "center",
-    padding: 14,
+    padding: "20px 14px",
     zIndex: 9999,
   },
   // Modal original - folosit de TicketModal (read-only, fara scroll lung)
@@ -1635,7 +1635,7 @@ const modalStyles = {
   modalFlex: {
     width: "100%",
     maxWidth: 920,
-    maxHeight: "90vh",
+    maxHeight: "82vh",
     background: "#f8f9fb",
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,.25)",
