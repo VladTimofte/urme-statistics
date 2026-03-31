@@ -760,6 +760,29 @@ function OrderFormModal({
 // Nu mai randeaza propriile butoane de submit/cancel.
 // Expune handleSubmit prin submitRef catre footer-ul din modal.
 
+function AttendanceDot({ present }) {
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span
+        style={{
+          display: "inline-block",
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: present ? "#22c55e" : "#ef4444",
+          boxShadow: present
+            ? "0 0 0 0 rgba(34,197,94,.6)"
+            : "0 0 0 0 rgba(239,68,68,.6)",
+          animation: present
+            ? "pulse-green 1.8s ease-in-out infinite"
+            : "pulse-red 1.8s ease-in-out infinite",
+        }}
+      />
+      Prezență
+    </span>
+  );
+}
+
 function OrderForm({
   initialData,
   onSubmit,
@@ -806,6 +829,25 @@ function OrderForm({
       }, 100);
     }
   }, [focusExtraIndex]);
+
+  useEffect(() => {
+    if (document.getElementById("pulse-dot-style")) return;
+    const style = document.createElement("style");
+    style.id = "pulse-dot-style";
+    style.textContent = `
+  @keyframes pulse-green {
+    0%   { box-shadow: 0 0 0 0px rgba(34,197,94,.6); }
+    70%  { box-shadow: 0 0 0 7px rgba(34,197,94,0); }
+    100% { box-shadow: 0 0 0 0px rgba(34,197,94,0); }
+  }
+  @keyframes pulse-red {
+    0%   { box-shadow: 0 0 0 0px rgba(239,68,68,.6); }
+    70%  { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
+    100% { box-shadow: 0 0 0 0px rgba(239,68,68,0); }
+  }
+`;
+    document.head.appendChild(style);
+  }, []);
 
   function updateMain(field, value) {
     setMainParticipant((prev) => ({ ...prev, [field]: value }));
@@ -918,9 +960,7 @@ function OrderForm({
 
       <Section title="Participant principal / cumparator bilete">
         <div style={formGridStyles.twoCols}>
-          <Field
-            label={attendance === "absent" ? "🔴 Prezență" : "🟢 Prezență"}
-          >
+          <Field label={<AttendanceDot present={attendance !== "absent"} />}>
             <select
               value={attendance}
               onChange={(e) => setAttendance(e.target.value)}
@@ -1094,7 +1134,7 @@ function OrderForm({
                 <div style={formGridStyles.twoCols}>
                   <Field
                     label={
-                      p.attendance === "absent" ? "🔴 Prezență" : "🟢 Prezență"
+                      <AttendanceDot present={p.attendance !== "absent"} />
                     }
                   >
                     <select
