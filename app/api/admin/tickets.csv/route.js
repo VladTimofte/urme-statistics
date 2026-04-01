@@ -27,11 +27,20 @@ const HEARD_FROM_MAP = {
   other: "Altfel",
 };
 
-// Light red fill for failed/cancelled rows
 const RED_FILL = {
   type: "pattern",
   pattern: "solid",
-  fgColor: { argb: "FFFFC7CE" },
+  fgColor: { argb: "FFFFC7CE" }, // light red  — failed / cancelled
+};
+const YELLOW_FILL = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFFFFFCC" }, // light yellow — cash / completed
+};
+const GREEN_FILL = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFC6EFCE" }, // light green  — paid
 };
 
 function statusLabel(status) {
@@ -129,13 +138,20 @@ function buildTicketsFromOrder(order) {
   const purchasedBy = `${buyerFirst} ${buyerLast}`.trim();
   const paidState = statusLabel(order.status);
   const dateCreated = formatDate(order.date_created);
-  const isFailed = order.status === "failed" || order.status === "cancelled";
+  const rowFill =
+    order.status === "failed" || order.status === "cancelled"
+      ? RED_FILL
+      : order.status === "completed"
+        ? YELLOW_FILL
+        : order.status === "processing" || order.status === "on-hold"
+          ? GREEN_FILL
+          : null;
 
   const orderBase = {
     orderId: order.id,
     paymentState: paidState,
     dateCreated,
-    isFailed,
+    rowFill,
   };
 
   const tickets = [];
@@ -262,10 +278,9 @@ export async function GET() {
       row.getCell(phoneColIndex).numFmt = "@";
     }
 
-    // Light red background for failed/cancelled orders
-    if (t.isFailed) {
+    if (t.rowFill) {
       row.eachCell((cell) => {
-        cell.fill = RED_FILL;
+        cell.fill = t.rowFill;
       });
     }
 
