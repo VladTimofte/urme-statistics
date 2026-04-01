@@ -362,7 +362,7 @@ export default function AdminPage() {
             + Adauga inscriere
           </button>
           <a href="/api/admin/tickets.csv" style={styles.csvBtn}>
-            Download CSV
+            Download .xlsx
           </a>
           <button
             onClick={refreshTickets}
