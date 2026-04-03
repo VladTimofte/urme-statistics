@@ -87,7 +87,7 @@ function normalizeStr(s) {
 }
 
 function attendanceLabel(val) {
-  return val === "present" ? "Prezent" : "Absent";
+  return val === "prezent" ? "Prezent" : "Absent";
 }
 
 function workshopLabel(val) {
