@@ -83,6 +83,22 @@ export default function GuestPage() {
                 <div key={workshop.key} style={styles.card}>
                   <div style={styles.label}>{workshop.label}</div>
                   <div style={styles.value(isMobile)}>{workshop.count}</div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 14,
+                      marginTop: 8,
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    <span style={{ color: "#16a34a" }}>
+                      ● {workshop.prezent ?? "-"} prezenți
+                    </span>
+                    <span style={{ color: "#dc2626" }}>
+                      ● {workshop.absent ?? "-"} absenți
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

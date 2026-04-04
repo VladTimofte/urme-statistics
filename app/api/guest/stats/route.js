@@ -52,6 +52,22 @@ export async function GET() {
     acc[key] = 0;
     return acc;
   }, {});
+  const workshopPrezent = Object.keys(WORKSHOP_MAP).reduce((acc, key) => {
+    acc[key] = 0;
+    return acc;
+  }, {});
+
+  function addWorkshopPrezent(workshopKey, attendance, workshopPrezent) {
+    const key = String(workshopKey || "").trim();
+    if (!key) return;
+    if (
+      attendance &&
+      attendance !== "absent" &&
+      Object.prototype.hasOwnProperty.call(workshopPrezent, key)
+    ) {
+      workshopPrezent[key] += 1;
+    }
+  }
 
   for (const order of orders) {
     const status = order?.status;
@@ -74,22 +90,35 @@ export async function GET() {
       staffParticipants += qty;
     }
 
-    // Workshop-urile se numara pentru PAID si STAFF
     if (paid || staff) {
       const buyerWorkshop =
         getMetaValue(order, "_urme_workshop") ||
         getMetaValue(order, "_billing_workshop");
 
+      const participants = getMetaValue(order, "_urme_participants");
+
       if (buyerWorkshop) {
         addWorkshopCount(buyerWorkshop, workshopCounts);
       }
 
-      const participants = getMetaValue(order, "_urme_participants");
       if (Array.isArray(participants)) {
         for (const participant of participants) {
           if (participant?.workshop) {
             addWorkshopCount(participant.workshop, workshopCounts);
           }
+        }
+      }
+
+      const buyerAttendance = getMetaValue(order, "_urme_attendance");
+      addWorkshopPrezent(buyerWorkshop, buyerAttendance, workshopPrezent);
+
+      if (Array.isArray(participants)) {
+        for (const participant of participants) {
+          addWorkshopPrezent(
+            participant.workshop,
+            participant.attendance,
+            workshopPrezent,
+          );
         }
       }
     }
@@ -101,6 +130,8 @@ export async function GET() {
     key,
     label,
     count: workshopCounts[key] || 0,
+    prezent: workshopPrezent[key] || 0,
+    absent: (workshopCounts[key] || 0) - (workshopPrezent[key] || 0),
   }));
 
   return NextResponse.json({
