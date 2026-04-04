@@ -101,6 +101,25 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
+    if (document.getElementById("pulse-dot-style")) return;
+    const style = document.createElement("style");
+    style.id = "pulse-dot-style";
+    style.textContent = `
+    @keyframes pulse-green {
+      0%   { box-shadow: 0 0 0 0px rgba(34,197,94,.6); }
+      70%  { box-shadow: 0 0 0 7px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0px rgba(34,197,94,0); }
+    }
+    @keyframes pulse-red {
+      0%   { box-shadow: 0 0 0 0px rgba(239,68,68,.6); }
+      70%  { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
+      100% { box-shadow: 0 0 0 0px rgba(239,68,68,0); }
+    }
+  `;
+    document.head.appendChild(style);
+  }, []);
+
+  useEffect(() => {
     const mq = window.matchMedia("(max-width: 860px)");
     const onChange = () => setIsMobile(mq.matches);
     onChange();
@@ -477,13 +496,48 @@ export default function AdminPage() {
                     gap: 10,
                     fontSize: 13,
                     fontWeight: 700,
+                    marginTop: 4,
                   }}
                 >
-                  <span style={{ color: "#16a34a" }}>
-                    ● {item.prezent} prezenți
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      color: "#16a34a",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: "#22c55e",
+                        animation: "pulse-green 1.8s ease-in-out infinite",
+                      }}
+                    />
+                    {item.prezent} prezenți
                   </span>
-                  <span style={{ color: "#dc2626" }}>
-                    ● {item.absent} absenți
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      color: "#dc2626",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: "#ef4444",
+                        animation: "pulse-red 1.8s ease-in-out infinite",
+                      }}
+                    />
+                    {item.absent} absenți
                   </span>
                 </div>
               </div>
@@ -873,25 +927,6 @@ function OrderForm({
       }, 100);
     }
   }, [focusExtraIndex]);
-
-  useEffect(() => {
-    if (document.getElementById("pulse-dot-style")) return;
-    const style = document.createElement("style");
-    style.id = "pulse-dot-style";
-    style.textContent = `
-  @keyframes pulse-green {
-    0%   { box-shadow: 0 0 0 0px rgba(34,197,94,.6); }
-    70%  { box-shadow: 0 0 0 7px rgba(34,197,94,0); }
-    100% { box-shadow: 0 0 0 0px rgba(34,197,94,0); }
-  }
-  @keyframes pulse-red {
-    0%   { box-shadow: 0 0 0 0px rgba(239,68,68,.6); }
-    70%  { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
-    100% { box-shadow: 0 0 0 0px rgba(239,68,68,0); }
-  }
-`;
-    document.head.appendChild(style);
-  }, []);
 
   function updateMain(field, value) {
     setMainParticipant((prev) => ({ ...prev, [field]: value }));
