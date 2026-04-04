@@ -49,6 +49,11 @@ function buildTicketsFromOrder(order) {
 
   const editable = extractEditableOrder(order);
 
+  const buyerAttendance = editable?.attendance || "absent";
+  const extraAttendances = (editable?.extraParticipants || []).map(
+    (p) => p?.attendance || "absent",
+  );
+
   const base = {
     orderId: order.id,
     orderNumber: order.number,
@@ -68,6 +73,7 @@ function buildTicketsFromOrder(order) {
     tickets.push({
       ...base,
       ticketIndex: 1,
+      attendance: buyerAttendance,
       attendeeFirstName: buyerFirst,
       attendeeLastName: buyerLast,
       attendeeWorkshop: buyerWorkshop,
@@ -89,6 +95,7 @@ function buildTicketsFromOrder(order) {
     tickets.push({
       ...base,
       ticketIndex: extraIndex,
+      attendance: extraAttendances[extraIndex - 2] || "absent",
       attendeeFirstName: normalizeStr(p?.first_name),
       attendeeLastName: normalizeStr(p?.last_name),
       attendeeWorkshop: normalizeStr(p?.workshop),
@@ -103,6 +110,7 @@ function buildTicketsFromOrder(order) {
     tickets.push({
       ...base,
       ticketIndex: extraIndex,
+      attendance: "absent",
       attendeeFirstName: "",
       attendeeLastName: "",
       attendeeWorkshop: "",

@@ -125,17 +125,28 @@ export default function AdminPage() {
   }, [tickets]);
 
   const workshopSummary = useMemo(() => {
-    return Object.keys(WORKSHOP_MAP).map((key) => ({
-      key,
-      label: WORKSHOP_MAP[key],
-      count: tickets.filter(
+    return Object.keys(WORKSHOP_MAP).map((key) => {
+      const relevant = tickets.filter(
         (t) =>
           t.attendeeWorkshop === key &&
           (t.orderStatus === "completed" ||
             t.orderStatus === "processing" ||
             t.orderStatus === "on-hold"),
-      ).length,
-    }));
+      );
+      const prezent = relevant.filter(
+        (t) => t.attendance && t.attendance !== "absent",
+      ).length;
+      const absent = relevant.filter(
+        (t) => !t.attendance || t.attendance === "absent",
+      ).length;
+      return {
+        key,
+        label: WORKSHOP_MAP[key],
+        count: relevant.length,
+        prezent,
+        absent,
+      };
+    });
   }, [tickets]);
 
   const filteredTickets = useMemo(() => {
@@ -441,7 +452,40 @@ export default function AdminPage() {
             {workshopSummary.map((item) => (
               <div key={item.key} style={styles.workshopSummaryCard}>
                 <div style={styles.workshopSummaryLabel}>{item.label}</div>
-                <div style={styles.workshopSummaryCount}>{item.count}</div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                    marginBottom: 6,
+                  }}
+                >
+                  <div style={styles.workshopSummaryCount}>{item.count}</div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "rgba(0,0,0,.5)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    total
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  <span style={{ color: "#16a34a" }}>
+                    ● {item.prezent} prezenți
+                  </span>
+                  <span style={{ color: "#dc2626" }}>
+                    ● {item.absent} absenți
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -760,7 +804,7 @@ function OrderFormModal({
 // Nu mai randeaza propriile butoane de submit/cancel.
 // Expune handleSubmit prin submitRef catre footer-ul din modal.
 
-function AttendanceDot({ present }) {
+function AttendanceDot({ prezent }) {
   return (
     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span
@@ -769,11 +813,11 @@ function AttendanceDot({ present }) {
           width: 10,
           height: 10,
           borderRadius: "50%",
-          background: present ? "#22c55e" : "#ef4444",
-          boxShadow: present
+          background: prezent ? "#22c55e" : "#ef4444",
+          boxShadow: prezent
             ? "0 0 0 0 rgba(34,197,94,.6)"
             : "0 0 0 0 rgba(239,68,68,.6)",
-          animation: present
+          animation: prezent
             ? "pulse-green 1.8s ease-in-out infinite"
             : "pulse-red 1.8s ease-in-out infinite",
         }}
@@ -960,7 +1004,7 @@ function OrderForm({
 
       <Section title="Participant principal / cumparator bilete">
         <div style={formGridStyles.twoCols}>
-          <Field label={<AttendanceDot present={attendance !== "absent"} />}>
+          <Field label={<AttendanceDot prezent={attendance !== "absent"} />}>
             <select
               value={attendance}
               onChange={(e) => setAttendance(e.target.value)}
@@ -1134,7 +1178,7 @@ function OrderForm({
                 <div style={formGridStyles.twoCols}>
                   <Field
                     label={
-                      <AttendanceDot present={p.attendance !== "absent"} />
+                      <AttendanceDot prezent={p.attendance !== "absent"} />
                     }
                   >
                     <select
